@@ -1,13 +1,6 @@
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace DesktopAutomationTest.SampleApp;
 
@@ -32,19 +25,23 @@ public partial class MainWindow : Window
             string.IsNullOrWhiteSpace(ageText))
         {
             ResultTextBlock.Text = "Please fill in all fields.";
-            ResultTextBlock.Foreground = System.Windows.Media.Brushes.Red;
+            ResultTextBlock.Foreground = Brushes.Red;
             return;
         }
 
         if (!int.TryParse(ageText, out int age))
         {
             ResultTextBlock.Text = "Age must be a valid number.";
-            ResultTextBlock.Foreground = System.Windows.Media.Brushes.Red;
+            ResultTextBlock.Foreground = Brushes.Red;
             return;
         }
 
-        ResultTextBlock.Text = $"Hello, {firstName} {lastName}! You are {age} years old.";
-        ResultTextBlock.Foreground = System.Windows.Media.Brushes.Green;
+        string country = (CountryComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Unknown";
+        bool rememberMe = RememberMeCheckBox.IsChecked == true;
+        string role = AdminRoleRadioButton.IsChecked == true ? "Admin" : "User";
+
+        ResultTextBlock.Text = $"Hello, {firstName} {lastName}! You are {age} years old from {country} ({role}).";
+        ResultTextBlock.Foreground = Brushes.Green;
     }
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
@@ -52,6 +49,9 @@ public partial class MainWindow : Window
         FirstNameTextBox.Text = string.Empty;
         LastNameTextBox.Text = string.Empty;
         AgeTextBox.Text = string.Empty;
+        CountryComboBox.SelectedIndex = 0;
+        RememberMeCheckBox.IsChecked = false;
+        UserRoleRadioButton.IsChecked = true;
         ResultTextBlock.Text = string.Empty;
     }
 }

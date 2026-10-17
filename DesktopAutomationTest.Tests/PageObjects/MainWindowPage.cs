@@ -44,7 +44,7 @@ public class MainWindowPage : IDisposable
     /// </summary>
     public AutomationElement? AgeTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("AgeTextBox"));
 
-    ///<summary>
+    /// <summary>
     /// Gets the Submit button as an AutomationElement.
     /// </summary>
     public AutomationElement? SubmitButtonElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("SubmitButton"));
@@ -58,6 +58,26 @@ public class MainWindowPage : IDisposable
     /// Gets the Result text block as an AutomationElement.
     /// </summary>
     public AutomationElement? ResultTextBlockElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("ResultTextBlock"));
+
+    /// <summary>
+    /// Gets the Country combo box as an AutomationElement.
+    /// </summary>
+    public AutomationElement? CountryComboBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("CountryComboBox"));
+
+    /// <summary>
+    /// Gets the Remember Me check box as an AutomationElement.
+    /// </summary>
+    public AutomationElement? RememberMeCheckBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("RememberMeCheckBox"));
+
+    /// <summary>
+    /// Gets the User role radio button as an AutomationElement.
+    /// </summary>
+    public AutomationElement? UserRoleRadioButtonElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("UserRoleRadioButton"));
+
+    /// <summary>
+    /// Gets the Admin role radio button as an AutomationElement.
+    /// </summary>
+    public AutomationElement? AdminRoleRadioButtonElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("AdminRoleRadioButton"));
 
     #endregion
 
@@ -175,6 +195,60 @@ public class MainWindowPage : IDisposable
     }
 
     /// <summary>
+    /// Selects a country from the CountryComboBox by its text.
+    /// </summary>
+    /// <param name="country">The country text to select (e.g. "Egypt").</param>
+    public void SelectCountry(string country)
+    {
+        _driver.SelectComboBoxItemByText("CountryComboBox", country);
+    }
+
+    /// <summary>
+    /// Sets the RememberMe checkbox state.
+    /// </summary>
+    /// <param name="isChecked">True to check, false to uncheck.</param>
+    public void SetRememberMe(bool isChecked)
+    {
+        _driver.SetCheckboxByAutomationId("RememberMeCheckBox", isChecked);
+    }
+
+    /// <summary>
+    /// Selects a role radio button by automationId.
+    /// </summary>
+    /// <param name="role">"User" or "Admin".</param>
+    public void SelectRole(string role)
+    {
+        var automationId = role == "Admin" ? "AdminRoleRadioButton" : "UserRoleRadioButton";
+        _driver.SelectRadioButtonByAutomationId(automationId);
+    }
+
+    /// <summary>
+    /// Gets whether the RememberMe checkbox is currently checked.
+    /// </summary>
+    public bool IsRememberMeChecked()
+    {
+        return _driver.IsCheckboxChecked("RememberMeCheckBox");
+    }
+
+    /// <summary>
+    /// Gets the currently selected country.
+    /// </summary>
+    public string? GetSelectedCountry()
+    {
+        return _driver.GetSelectedComboBoxItem("CountryComboBox");
+    }
+
+    /// <summary>
+    /// Gets the currently selected role ("User" or "Admin").
+    /// </summary>
+    public string GetSelectedRole()
+    {
+        if (_driver.IsRadioButtonSelected("AdminRoleRadioButton"))
+            return "Admin";
+        return "User";
+    }
+
+    /// <summary>
     /// Fills out the form with sample data and submits it.
     /// </summary>
     /// <param name="firstName">The first name to enter.</param>
@@ -186,6 +260,21 @@ public class MainWindowPage : IDisposable
         EnterFirstName(firstName);
         EnterLastName(lastName);
         EnterAge(age);
+        ClickSubmit();
+    }
+
+    /// <summary>
+    /// Fills out the full form including controls and submits it.
+    /// </summary>
+    public void SubmitForm(string firstName, string lastName, string age, string country, bool rememberMe, string role)
+    {
+        ClearAllFields();
+        EnterFirstName(firstName);
+        EnterLastName(lastName);
+        EnterAge(age);
+        SelectCountry(country);
+        SetRememberMe(rememberMe);
+        SelectRole(role);
         ClickSubmit();
     }
 

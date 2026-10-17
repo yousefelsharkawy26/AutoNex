@@ -102,3 +102,4 @@ public class DesktopControlsTests
         mockDriver.Verify(d => d.IsRadioButtonSelected("FemaleRadioButton", null), Times.Once);
     }
 }
+

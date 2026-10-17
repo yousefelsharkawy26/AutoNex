@@ -172,6 +172,86 @@ public class SampleAppSteps
         _mainWindow = null;
     }
 
+    // ─── New Control Steps ───────────────────────────────────────────────────
+
+    [When(@"I select ""(.*)"" from the CountryComboBox")]
+    public void WhenISelectFromTheCountryComboBox(string country)
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.SelectCountry(country);
+        }
+    }
+
+    [Then(@"the selected item in CountryComboBox should be ""(.*)""")]
+    public void ThenTheSelectedItemInCountryComboBoxShouldBe(string expected)
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.GetSelectedCountry().Should().Be(expected);
+        }
+        else
+        {
+            expected.Should().NotBeNullOrEmpty();
+        }
+    }
+
+    [When(@"I check the RememberMeCheckBox")]
+    public void WhenICheckTheRememberMeCheckBox()
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.SetRememberMe(true);
+        }
+    }
+
+    [When(@"I uncheck the RememberMeCheckBox")]
+    public void WhenIUncheckTheRememberMeCheckBox()
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.SetRememberMe(false);
+        }
+    }
+
+    [Then(@"the RememberMeCheckBox should be checked")]
+    public void ThenTheRememberMeCheckBoxShouldBeChecked()
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.IsRememberMeChecked().Should().BeTrue();
+        }
+    }
+
+    [Then(@"the RememberMeCheckBox should not be checked")]
+    public void ThenTheRememberMeCheckBoxShouldNotBeChecked()
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.IsRememberMeChecked().Should().BeFalse();
+        }
+    }
+
+    [When(@"I select role ""(.*)""")]
+    public void WhenISelectRole(string role)
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.SelectRole(role);
+        }
+    }
+
+    [Then(@"the AdminRoleRadioButton should be selected")]
+    public void ThenTheAdminRoleRadioButtonShouldBeSelected()
+    {
+        if (PlatformGuard.IsWindows && _mainWindow != null)
+        {
+            _mainWindow.GetSelectedRole().Should().Be("Admin");
+        }
+    }
+
+
+
     private static string ResolveSampleAppPath()
     {
         var baseDir = AppContext.BaseDirectory;

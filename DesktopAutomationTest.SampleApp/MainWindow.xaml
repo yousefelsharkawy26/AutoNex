@@ -5,9 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DesktopAutomationTest.SampleApp"
         mc:Ignorable="d"
-        Title="Sample Application for Testing" Height="450" Width="800">
+        Title="Sample Application for Testing" Height="500" Width="800">
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -17,7 +20,7 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="220"/>
         </Grid.ColumnDefinitions>
 
         <!-- Title -->
@@ -45,8 +48,33 @@
         <TextBox x:Name="AgeTextBox" Grid.Row="3" Grid.Column="1" 
                  Margin="0,5,0,5" Padding="5" AutomationProperties.AutomationId="AgeTextBox"/>
 
+        <!-- Country ComboBox -->
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,5,0,5" 
+                   VerticalAlignment="Center">Country:</TextBlock>
+        <ComboBox x:Name="CountryComboBox" Grid.Row="4" Grid.Column="1" 
+                  Margin="0,5,0,5" Padding="5" AutomationProperties.AutomationId="CountryComboBox" SelectedIndex="0">
+            <ComboBoxItem Content="United States"/>
+            <ComboBoxItem Content="Egypt"/>
+            <ComboBoxItem Content="Germany"/>
+            <ComboBoxItem Content="United Kingdom"/>
+        </ComboBox>
+
+        <!-- Remember Me CheckBox -->
+        <CheckBox x:Name="RememberMeCheckBox" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                  Margin="0,8,0,5" Content="Remember Me"
+                  AutomationProperties.AutomationId="RememberMeCheckBox"/>
+
+        <!-- Role RadioButtons -->
+        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,5">
+            <TextBlock Margin="0,0,10,0" VerticalAlignment="Center">Role:</TextBlock>
+            <RadioButton x:Name="UserRoleRadioButton" Content="User" IsChecked="True" GroupName="RoleGroup"
+                         Margin="0,0,10,0" AutomationProperties.AutomationId="UserRoleRadioButton"/>
+            <RadioButton x:Name="AdminRoleRadioButton" Content="Admin" GroupName="RoleGroup"
+                         AutomationProperties.AutomationId="AdminRoleRadioButton"/>
+        </StackPanel>
+
         <!-- Buttons -->
-        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,5">
+        <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
             <Button x:Name="SubmitButton" Margin="0,0,10,0" Padding="15,5" 
                     Content="Submit"
                     AutomationProperties.AutomationId="SubmitButton"
@@ -58,7 +86,7 @@
         </StackPanel>
 
         <!-- Results Display -->
-        <TextBlock x:Name="ResultTextBlock" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+        <TextBlock x:Name="ResultTextBlock" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
                    Margin="0,10,0,0" TextWrapping="Wrap"
                    AutomationProperties.AutomationId="ResultTextBlock"/>
     </Grid>
