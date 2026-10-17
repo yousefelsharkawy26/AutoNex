@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   build-and-test:
     runs-on: windows-latest
@@ -30,27 +35,30 @@ jobs:
       run: dotnet build ${{ env.SOLUTION_FILE }} --configuration ${{ env.CONFIGURATION }} --no-restore
       
     - name: Test with retry logic for flaky tests
+      shell: pwsh
       run: |
-        # Run tests with retry mechanism for flaky UI tests
-        dotnet test ${{ env.TEST_PROJECT }} \
-          --configuration ${{ env.CONFIGURATION }} \
-          --no-build \
-          --verbosity normal \
-          --results-directory ${{ runner.temp }}/testresults \
-          --logger "trx;LogFileName=test_results.trx" \
-          || (
-            echo "Initial test run failed, attempting retry for flaky tests..."
-            # Wait a bit before retry
-            sleep 10
-            # Retry failed tests only
-            dotnet test ${{ env.TEST_PROJECT }} \
-              --configuration ${{ env.CONFIGURATION }} \
-              --no-build \
-              --verbosity normal \
-              --results-directory ${{ runner.temp }}/testresults-retry \
-              --logger "trx;LogFileName=test_results_retry.trx" \
-              --filter "FullyQualifiedName!~Passed" || echo "Retry completed"
-          )
+        $testResultsDir = Join-Path $env:RUNNER_TEMP "testresults"
+        $retryResultsDir = Join-Path $env:RUNNER_TEMP "testresults-retry"
+
+        Write-Host "Running initial test suite..."
+        dotnet test $env:TEST_PROJECT `
+          --configuration $env:CONFIGURATION `
+          --no-build `
+          --verbosity normal `
+          --results-directory $testResultsDir `
+          --logger "trx;LogFileName=test_results.trx"
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Initial test run failed, waiting 10 seconds before retrying flaky tests..."
+            Start-Sleep -Seconds 10
+            dotnet test $env:TEST_PROJECT `
+              --configuration $env:CONFIGURATION `
+              --no-build `
+              --verbosity normal `
+              --results-directory $retryResultsDir `
+              --logger "trx;LogFileName=test_results_retry.trx" `
+              --filter "FullyQualifiedName!~Passed"
+        }
       
     - name: Collect test results
       if: always()
@@ -79,6 +87,8 @@ jobs:
       uses: dorny/test-reporter@v1
       with:
         name: Windows UI Tests
-        path: ${{ runner.temp }}/testresults/**/*.trx
-        retry: ${{ runner.temp }}/testresults-retry/**/*.trx
+        reporter: dotnet-trx
+        path: |
+          ${{ runner.temp }}/testresults/**/*.trx
+          ${{ runner.temp }}/testresults-retry/**/*.trx
         fail-on-error: false
