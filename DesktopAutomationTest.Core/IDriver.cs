@@ -107,4 +107,55 @@ public interface IDriver : IDisposable
     /// Checks whether a RadioButton element is currently selected.
     /// </summary>
     bool IsRadioButtonSelected(string automationId, TimeSpan? timeout = null);
+
+    // ── [FEATURE-KEYBOARD-MOUSE] Advanced keyboard and mouse input ─────────────
+
+    /// <summary>
+    /// Double-clicks an element identified by its automation ID.
+    /// </summary>
+    /// <param name="automationId">The automation ID of the target element.</param>
+    /// <param name="timeout">Optional element lookup timeout.</param>
+    /// <returns>True if the double-click was performed; otherwise false.</returns>
+    bool DoubleClickByAutomationId(string automationId, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Right-clicks an element identified by its automation ID.
+    /// </summary>
+    /// <param name="automationId">The automation ID of the target element.</param>
+    /// <param name="timeout">Optional element lookup timeout.</param>
+    /// <returns>True if the right-click was performed; otherwise false.</returns>
+    bool RightClickByAutomationId(string automationId, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Moves the mouse pointer over an element (hover) without clicking.
+    /// </summary>
+    /// <param name="automationId">The automation ID of the target element.</param>
+    /// <param name="timeout">Optional element lookup timeout.</param>
+    /// <returns>True if the hover was performed; otherwise false.</returns>
+    bool HoverOverByAutomationId(string automationId, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Presses a single key by its virtual-key name (e.g. "Return", "Escape", "Tab").
+    /// </summary>
+    /// <param name="key">The key name — values mirror <see cref="FlaUI.Core.Input.VirtualKeyShort"/>.</param>
+    /// <returns>True if the key press was sent; otherwise false.</returns>
+    bool PressKey(string key);
+
+    /// <summary>
+    /// Types a raw string as a sequence of key presses (simulates keyboard input).
+    /// Use <see cref="TypeTextByAutomationId"/> to enter text into a specific element;
+    /// use this method to send global keyboard input (e.g. shortcuts, Enter after focus).
+    /// </summary>
+    /// <param name="text">The text to type globally.</param>
+    /// <returns>True if the keys were sent; otherwise false.</returns>
+    bool SendKeys(string text);
+
+    /// <summary>
+    /// Drags an element and drops it onto another element.
+    /// </summary>
+    /// <param name="sourceAutomationId">AutomationId of the element to drag.</param>
+    /// <param name="targetAutomationId">AutomationId of the drop target.</param>
+    /// <param name="timeout">Optional element lookup timeout.</param>
+    /// <returns>True if the drag-and-drop was performed; otherwise false.</returns>
+    bool DragAndDrop(string sourceAutomationId, string targetAutomationId, TimeSpan? timeout = null);
 }

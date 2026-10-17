@@ -367,5 +367,22 @@ public static class ReqnrollServices
             }
             return found;
         }
+
+        // \u2500\u2500 [FEATURE-KEYBOARD-MOUSE] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+        public bool DoubleClickByAutomationId(string automationId, TimeSpan? timeout = null)
+            => TryFindByAutomationId(automationId, timeout);
+
+        public bool RightClickByAutomationId(string automationId, TimeSpan? timeout = null)
+            => TryFindByAutomationId(automationId, timeout);
+
+        public bool HoverOverByAutomationId(string automationId, TimeSpan? timeout = null)
+            => TryFindByAutomationId(automationId, timeout);
+
+        public bool PressKey(string key)
+            => !string.IsNullOrEmpty(key);
+
+        public bool SendKeys(string text)
+            => text != null;
     }
 }

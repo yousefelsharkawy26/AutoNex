@@ -9,6 +9,7 @@ using FlaUI.Core.Capturing;
 using FlaUI.Core.Definitions;
 using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
+using FlaUI.Core.WindowsAPI;
 using FlaUI.UIA3;
 
 namespace DesktopAutomationTest.Core;
@@ -425,6 +426,169 @@ public class FlaUIAdapter : IDriver
 
             var radioButton = element.AsRadioButton();
             return radioButton?.IsChecked == true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // ── [FEATURE-KEYBOARD-MOUSE] Advanced keyboard and mouse input ──────────────
+
+    /// <summary>
+    /// Double-clicks an element identified by its automation ID.
+    /// Uses FlaUI Mouse.DoubleClick on the element's center point.
+    /// </summary>
+    public bool DoubleClickByAutomationId(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null || !element.Properties.IsEnabled)
+                return false;
+
+            element.DoubleClick();
+            Thread.Sleep(50);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Right-clicks an element identified by its automation ID.
+    /// Uses FlaUI Mouse.RightClick on the element's center point.
+    /// </summary>
+    public bool RightClickByAutomationId(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null || !element.Properties.IsEnabled)
+                return false;
+
+            element.RightClick();
+            Thread.Sleep(50);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Moves the mouse pointer over an element (hover) without clicking.
+    /// Uses FlaUI Mouse.MoveTo on the element's center point.
+    /// </summary>
+    public bool HoverOverByAutomationId(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            // Move mouse to the center of the element bounding rectangle
+            var rect = element.BoundingRectangle;
+            var centerX = rect.Left + rect.Width / 2;
+            var centerY = rect.Top + rect.Height / 2;
+            Mouse.MoveTo(centerX, centerY);
+            Thread.Sleep(100);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Presses a single key by name (e.g. "Return", "Escape", "Tab", "F5").
+    /// Parses the key name against <see cref="VirtualKeyShort"/> enum values.
+    /// </summary>
+    public bool PressKey(string key)
+    {
+        Guard.AgainstNullOrEmpty(key, nameof(key));
+
+        try
+        {
+            if (Enum.TryParse<VirtualKeyShort>(key, ignoreCase: true, out var vk))
+            {
+                Keyboard.Press(vk);
+                Thread.Sleep(30);
+                Keyboard.Release(vk);
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Types a raw string as global keyboard input using FlaUI Keyboard.Type.
+    /// Useful for sending text after an element already has focus, or for
+    /// sending keyboard shortcuts (e.g. Ctrl+A, Ctrl+C).
+    /// </summary>
+    public bool SendKeys(string text)
+    {
+        Guard.AgainstNull(text, nameof(text));
+
+        try
+        {
+            Keyboard.Type(text);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Drags the source element and drops it onto the target element.
+    /// Computes center points of both bounding rectangles and uses
+    /// FlaUI Mouse.DragAndDrop for the operation.
+    /// </summary>
+    public bool DragAndDrop(string sourceAutomationId, string targetAutomationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(sourceAutomationId, nameof(sourceAutomationId));
+        Guard.AgainstNullOrEmpty(targetAutomationId, nameof(targetAutomationId));
+
+        try
+        {
+            var source = FindElement(sourceAutomationId, timeout);
+            var target = FindElement(targetAutomationId, timeout);
+
+            if (source == null || target == null)
+                return false;
+
+            var srcRect = source.BoundingRectangle;
+            var tgtRect = target.BoundingRectangle;
+
+            var srcCenter = new System.Drawing.Point(
+                srcRect.Left + srcRect.Width / 2,
+                srcRect.Top  + srcRect.Height / 2);
+
+            var tgtCenter = new System.Drawing.Point(
+                tgtRect.Left + tgtRect.Width / 2,
+                tgtRect.Top  + tgtRect.Height / 2);
+
+            Mouse.Drag(srcCenter, tgtCenter);
+            Thread.Sleep(100);
+            return true;
         }
         catch (Exception)
         {
