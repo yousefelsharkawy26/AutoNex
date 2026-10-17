@@ -31,8 +31,8 @@ public class SampleAppSteps
         // On Windows, this would actually launch the application
         if (PlatformGuard.IsWindows)
         {
-            // Initialize the driver with the sample application path
-            _driver.Initialize("DesktopAutomationTest.SampleApp.exe");
+            var appPath = ResolveSampleAppPath();
+            _driver.Initialize(appPath);
             
             // Get the main window and create the page object
             if (_driver is FlaUIAdapter flauiAdapter)
@@ -170,5 +170,30 @@ public class SampleAppSteps
         
         _isInitialized = false;
         _mainWindow = null;
+    }
+
+    private static string ResolveSampleAppPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var direct = Path.Combine(baseDir, "DesktopAutomationTest.SampleApp.exe");
+        if (File.Exists(direct))
+            return direct;
+
+        var dir = new DirectoryInfo(baseDir);
+        while (dir != null)
+        {
+            var candidateDir = Path.Combine(dir.FullName, "DesktopAutomationTest.SampleApp");
+            if (Directory.Exists(candidateDir))
+            {
+                var files = Directory.GetFiles(candidateDir, "DesktopAutomationTest.SampleApp.exe", SearchOption.AllDirectories);
+                if (files.Length > 0)
+                {
+                    return files.OrderByDescending(f => f.Contains("Release")).First();
+                }
+            }
+            dir = dir.Parent;
+        }
+
+        return "DesktopAutomationTest.SampleApp.exe";
     }
 }

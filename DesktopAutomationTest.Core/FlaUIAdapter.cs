@@ -47,9 +47,8 @@ public class FlaUIAdapter : IDriver
         try
         {
             _application = Application.Launch(appPath, arguments ?? "");
-            _mainWindow = _application.GetMainWindow(_automation);
-            // TODO: Replace with proper FlaUI waiting mechanism
-            Thread.Sleep(500); // Temporary placeholder
+            _mainWindow = _application.GetMainWindow(_automation, TimeSpan.FromSeconds(10));
+            _application?.WaitWhileBusy();
         }
         catch (Exception ex)
         {

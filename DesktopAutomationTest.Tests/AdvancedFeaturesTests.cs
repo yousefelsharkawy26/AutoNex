@@ -78,27 +78,29 @@ public class AdvancedFeaturesTests
     [RequiresWindowsFact]
     public void VisualRegression_SameImage_MatchesBaseline()
     {
-        var actual = WriteTempPng("identical", (x, y) =>
+        var caseName = "gradient-baseline-" + Guid.NewGuid().ToString("N");
+        var actual = WriteTempPng("identical-" + Guid.NewGuid().ToString("N"), (x, y) =>
             Color(x * 7 % 256, y * 11 % 256, (x + y) % 256));
 
         // First call records the baseline if absent, then this second call must match it.
-        VisualRegressionHelper.AssertMatches("gradient-baseline", actual);
-        VisualRegressionHelper.AssertMatches("gradient-baseline", actual);
+        VisualRegressionHelper.AssertMatches(caseName, actual);
+        VisualRegressionHelper.AssertMatches(caseName, actual);
     }
 
     [RequiresWindowsFact]
     public void VisualRegression_DifferentImage_IsDetectedAndProducesDiff()
     {
-        var basePath = WriteTempPng("regression-base", (x, y) => Color(10, 20, 30));
-        VisualRegressionHelper.AssertMatches("regression-case", basePath);
-        Assert.True(VisualRegressionHelper.BaselineExists("regression-case"));
+        var caseName = "regression-case-" + Guid.NewGuid().ToString("N");
+        var basePath = WriteTempPng("regression-base-" + Guid.NewGuid().ToString("N"), (x, y) => Color(10, 20, 30));
+        VisualRegressionHelper.AssertMatches(caseName, basePath);
+        Assert.True(VisualRegressionHelper.BaselineExists(caseName));
 
         // Change a large region so the difference is well above the 1% threshold.
-        var changed = WriteTempPng("regression-changed", (x, y) =>
+        var changed = WriteTempPng("regression-changed-" + Guid.NewGuid().ToString("N"), (x, y) =>
             x < 60 ? Color(250, 250, 250) : Color(10, 20, 30));
 
         var exception = Assert.Throws<ImageComparisonException>(
-            () => VisualRegressionHelper.AssertMatches("regression-case", changed));
+            () => VisualRegressionHelper.AssertMatches(caseName, changed));
 
         Assert.True(exception.DifferencePercentage > 1.0,
             $"Expected >1% difference but got {exception.DifferencePercentage}%");
@@ -107,21 +109,23 @@ public class AdvancedFeaturesTests
     [RequiresWindowsFact]
     public void VisualRegression_MissingActual_ThrowsFileNotFound()
     {
+        var caseName = "whatever-" + Guid.NewGuid().ToString("N");
         Assert.Throws<FileNotFoundException>(
-            () => VisualRegressionHelper.AssertMatches("whatever", "/nonexistent/nope.png"));
+            () => VisualRegressionHelper.AssertMatches(caseName, "/nonexistent/nope.png"));
     }
 
     [RequiresWindowsFact]
     public void VisualRegression_AcceptBaseline_ReplacesStoredBaseline()
     {
-        var original = WriteTempPng("accept-original", (x, y) => Color(1, 2, 3));
-        VisualRegressionHelper.AssertMatches("accept-case", original);
+        var caseName = "accept-case-" + Guid.NewGuid().ToString("N");
+        var original = WriteTempPng("accept-original-" + Guid.NewGuid().ToString("N"), (x, y) => Color(1, 2, 3));
+        VisualRegressionHelper.AssertMatches(caseName, original);
 
-        var replacement = WriteTempPng("accept-replacement", (x, y) => Color(200, 100, 50));
-        VisualRegressionHelper.AcceptBaseline("accept-case", replacement);
+        var replacement = WriteTempPng("accept-replacement-" + Guid.NewGuid().ToString("N"), (x, y) => Color(200, 100, 50));
+        VisualRegressionHelper.AcceptBaseline(caseName, replacement);
 
         // After accepting, the new image is the baseline so it must now match.
-        VisualRegressionHelper.AssertMatches("accept-case", replacement);
+        VisualRegressionHelper.AssertMatches(caseName, replacement);
     }
 
     // ------------------------------------------------------------- allure steps

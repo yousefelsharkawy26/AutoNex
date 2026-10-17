@@ -37,15 +37,12 @@ jobs:
     - name: Test with retry logic for flaky tests
       shell: pwsh
       run: |
-        $testResultsDir = Join-Path $env:RUNNER_TEMP "testresults"
-        $retryResultsDir = Join-Path $env:RUNNER_TEMP "testresults-retry"
-
         Write-Host "Running initial test suite..."
         dotnet test $env:TEST_PROJECT `
           --configuration $env:CONFIGURATION `
           --no-build `
           --verbosity normal `
-          --results-directory $testResultsDir `
+          --results-directory TestResults `
           --logger "trx;LogFileName=test_results.trx"
 
         if ($LASTEXITCODE -ne 0) {
@@ -55,7 +52,7 @@ jobs:
               --configuration $env:CONFIGURATION `
               --no-build `
               --verbosity normal `
-              --results-directory $retryResultsDir `
+              --results-directory TestResults-Retry `
               --logger "trx;LogFileName=test_results_retry.trx" `
               --filter "FullyQualifiedName!~Passed"
         }
@@ -66,8 +63,8 @@ jobs:
       with:
         name: test-results-${{ github.run_id }}
         path: |
-          ${{ runner.temp }}/testresults/**/*.trx
-          ${{ runner.temp }}/testresults-retry/**/*.trx
+          TestResults/**/*.trx
+          TestResults-Retry/**/*.trx
         retention-days: 7
         
     - name: Collect failure artifacts
@@ -88,7 +85,6 @@ jobs:
       with:
         name: Windows UI Tests
         reporter: dotnet-trx
-        path: |
-          ${{ runner.temp }}/testresults/**/*.trx
-          ${{ runner.temp }}/testresults-retry/**/*.trx
+        path: 'TestResults*/**/*.trx'
+        path-replace-backslashes: 'true'
         fail-on-error: false
