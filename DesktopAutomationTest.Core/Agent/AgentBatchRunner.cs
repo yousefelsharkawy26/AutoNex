@@ -104,22 +104,23 @@ public class AgentBatchRunner
     private (bool Success, string? Error) ExecuteSingleAction(AgentAction action)
     {
         var type = action.Action.Trim().ToLowerInvariant();
+        var targetId = ResolveTargetId(action.AutomationId);
 
         switch (type)
         {
             case "click":
-                if (string.IsNullOrEmpty(action.AutomationId))
+                if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for click action.");
-                return _driver.ClickByAutomationId(action.AutomationId) 
+                return _driver.ClickByAutomationId(targetId) 
                     ? (true, null) 
-                    : (false, $"Failed to click element '{action.AutomationId}'. Element not found or disabled.");
+                    : (false, $"Failed to click element '{targetId}'. Element not found or disabled.");
 
             case "type":
-                if (string.IsNullOrEmpty(action.AutomationId))
+                if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for type action.");
-                return _driver.TypeTextByAutomationId(action.AutomationId, action.Value ?? string.Empty)
+                return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
                     ? (true, null)
-                    : (false, $"Failed to type text into '{action.AutomationId}'.");
+                    : (false, $"Failed to type text into '{targetId}'.");
 
             case "check":
                 if (string.IsNullOrEmpty(action.AutomationId))
@@ -215,4 +216,47 @@ public class AgentBatchRunner
                 return (false, $"Unknown action type '{action.Action}'.");
         }
     }
+
+    private string? ResolveTargetId(string? originalId)
+    {
+        if (string.IsNullOrEmpty(originalId))
+        {
+            return originalId;
+        }
+
+        // Direct test if element exists
+        if (_driver.TryFindByAutomationId(originalId))
+        {
+            return originalId;
+        }
+
+        // Self-healing: parse candidates from CompactUiTree if available
+        try
+        {
+            var rawJson = _driver.GetCompactUiTree("json");
+            if (!string.IsNullOrEmpty(rawJson) && rawJson.StartsWith("["))
+            {
+                var candidates = JsonSerializer.Deserialize<List<CompactUiElement>>(rawJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (candidates != null && candidates.Count > 0)
+                {
+                    var resolved = FuzzyLocator.ResolveBestMatch(originalId, candidates);
+                    if (!string.IsNullOrEmpty(resolved))
+                    {
+                        return resolved;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fallback to original
+        }
+
+        return originalId;
+    }
 }
+

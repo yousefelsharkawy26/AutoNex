@@ -107,3 +107,4 @@ public record AgentBatchResult
         return $"FAILED at {detail} (Completed {ExecutedStepsCount}/{TotalStepsCount})";
     }
 }
+

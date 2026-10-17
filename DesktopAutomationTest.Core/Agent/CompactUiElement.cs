@@ -56,3 +56,4 @@ public record CompactUiElement
         return $"[{Type}{idPart}{namePart}{valPart}{statePart}]";
     }
 }
+
