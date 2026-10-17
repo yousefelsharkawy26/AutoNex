@@ -384,5 +384,14 @@ public static class ReqnrollServices
 
         public bool SendKeys(string text)
             => text != null;
+
+        public string GetCompactUiTree(string format = "text")
+        {
+            if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+            {
+                return "[{\"type\":\"Edit\",\"id\":\"FirstNameTextBox\"},{\"type\":\"Button\",\"id\":\"SubmitButton\"}]";
+            }
+            return "[Edit #FirstNameTextBox]\n[Button #SubmitButton \"Submit\"]";
+        }
     }
 }

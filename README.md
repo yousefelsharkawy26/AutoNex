@@ -172,6 +172,10 @@ in a single `stryker-config` root object.
 
 ### Core Library
 - **Driver Abstraction**: `IDriver` with FlaUI implementation
+- **Token-Efficient Agent Automation**:
+  - `CompactUiTree`: filtered, semantic-only UI hierarchy dump (`[Button #Submit "Submit"]`) saving ~90% tokens
+  - `AgentBatchRunner`: multi-action JSON execution pipeline in 1 tool call
+  - `CompactUiElement`: lightweight JSON/Text DTO for LLM context windows
 - **Desktop Controls**: CheckBox, ComboBox (text/index), RadioButton automation
 - **Advanced Keyboard & Mouse**: DoubleClick, RightClick, Hover, PressKey, SendKeys, Drag & Drop
 - **Base Test Fixture**: shared setup/teardown

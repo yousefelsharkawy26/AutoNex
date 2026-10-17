@@ -590,6 +590,24 @@ public class FlaUIAdapter : IDriver
     }
 
     /// <summary>
+    /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
+    /// </summary>
+    public string GetCompactUiTree(string format = "text")
+    {
+        if (_mainWindow == null)
+        {
+            return "[No Main Window Available]";
+        }
+
+        if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            return Agent.CompactUiTree.DumpAsJson(_mainWindow);
+        }
+
+        return Agent.CompactUiTree.DumpAsText(_mainWindow);
+    }
+
+    /// <summary>
     /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()

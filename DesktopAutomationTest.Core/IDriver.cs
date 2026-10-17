@@ -155,4 +155,10 @@ public interface IDriver : IDisposable
     /// <param name="timeout">Optional element lookup timeout.</param>
     /// <returns>True if the drag-and-drop was performed; otherwise false.</returns>
     bool DragAndDrop(string sourceAutomationId, string targetAutomationId, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
+    /// </summary>
+    /// <param name="format">Format of the dump: "text" (default, minimal tokens) or "json".</param>
+    string GetCompactUiTree(string format = "text");
 }
