@@ -393,5 +393,11 @@ public static class ReqnrollServices
             }
             return "[Edit #FirstNameTextBox]\n[Button #SubmitButton \"Submit\"]";
         }
+
+        public IReadOnlyList<string> GetOpenWindowTitles() => new[] { "Main Window", "Settings Dialog" };
+
+        public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null) => !string.IsNullOrEmpty(titleSubstring);
+
+        public void CloseCurrentWindow() { }
     }
 }

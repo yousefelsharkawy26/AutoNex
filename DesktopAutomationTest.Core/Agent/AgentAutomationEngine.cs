@@ -145,4 +145,36 @@ public class AgentAutomationEngine
         var result   = replayer.ReplayFile(sessionFilePath);
         return result.ToSummary();
     }
+
+    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
+
+    /// <summary>
+    /// Lists titles of all currently open top-level windows belonging to the application.
+    /// </summary>
+    public string ListWindows()
+    {
+        var titles = _driver.GetOpenWindowTitles();
+        if (titles.Count == 0) return "No open windows found.";
+        return string.Join("\n", titles.Select((t, i) => $"[{i}] {t}"));
+    }
+
+    /// <summary>
+    /// Switches automation context to a window by title or substring.
+    /// </summary>
+    public string SwitchWindow(string titleSubstring, int timeoutSeconds = 5)
+    {
+        var ok = _driver.SwitchToWindow(titleSubstring, TimeSpan.FromSeconds(timeoutSeconds));
+        return ok
+            ? $"Switched context to window matching: '{titleSubstring}'"
+            : $"Error: window matching '{titleSubstring}' not found after {timeoutSeconds}s.";
+    }
+
+    /// <summary>
+    /// Closes the currently active window.
+    /// </summary>
+    public string CloseCurrentWindow()
+    {
+        _driver.CloseCurrentWindow();
+        return "Current window closed.";
+    }
 }

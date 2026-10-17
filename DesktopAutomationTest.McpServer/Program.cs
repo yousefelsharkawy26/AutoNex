@@ -42,7 +42,7 @@ public class Program
                     {
                         protocolVersion = "2024-11-05",
                         capabilities = new { tools = new { } },
-                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.2.0" }
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.3.0" }
                     });
                 }
                 else if (method == "notifications/initialized")
@@ -222,6 +222,27 @@ public class Program
             },
                         new
             {
+                name = "list_windows",
+                description = "Returns a list of all currently open top-level windows for the application. Useful for multi-window flows and dialog detection.",
+                inputSchema = new { type = "object", properties = new { } }
+            },
+            new
+            {
+                name = "switch_window",
+                description = "Switches the active UI automation context to a window matching the specified title (exact or partial substring).",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        title = new { type = "string", description = "Title or substring of the window to focus and automate." },
+                        timeout_seconds = new { type = "integer", description = "Optional timeout in seconds. Default: 5." }
+                    },
+                    required = new[] { "title" }
+                }
+            },
+                        new
+            {
                 name = "close_application",
                 description = "Closes the running application and frees automation resources.",
                 inputSchema = new { type = "object", properties = new { } }
@@ -339,6 +360,28 @@ public class Program
                 }
 
                 return _engine.ReplaySession(replayPath);
+
+            case "list_windows":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+                return _engine.ListWindows();
+
+            case "switch_window":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var winTitle = arguments.GetProperty("title").GetString();
+                if (string.IsNullOrEmpty(winTitle))
+                {
+                    return "Error: title is required.";
+                }
+
+                var winTimeout = arguments.TryGetProperty("timeout_seconds", out var wt) ? wt.GetInt32() : 5;
+                return _engine.SwitchWindow(winTitle, winTimeout);
 
             case "close_application":
                 _driver?.Dispose();

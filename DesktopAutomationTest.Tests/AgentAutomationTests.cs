@@ -452,4 +452,60 @@ public class AgentAutomationTests
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }
     }
+
+    // ── [MULTI-WINDOW] Tests ───────────────────────────────────────────────
+
+    [Fact]
+    public void AgentAutomationEngine_ListWindows_ReturnsFormattedList_WhenWindowsExist()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetOpenWindowTitles())
+                  .Returns(new List<string> { "Main Window", "Settings Dialog" });
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.ListWindows();
+
+        result.Should().Contain("[0] Main Window");
+        result.Should().Contain("[1] Settings Dialog");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ListWindows_ReturnsMessage_WhenNoWindows()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetOpenWindowTitles())
+                  .Returns(new List<string>());
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.ListWindows();
+
+        result.Should().Be("No open windows found.");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_SwitchWindow_ReturnsSuccess_WhenFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.SwitchToWindow("Settings", It.IsAny<TimeSpan?>()))
+                  .Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.SwitchWindow("Settings", 3);
+
+        result.Should().Contain("Switched context to window matching: 'Settings'");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_SwitchWindow_ReturnsError_WhenNotFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.SwitchToWindow("NonExistent", It.IsAny<TimeSpan?>()))
+                  .Returns(false);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.SwitchWindow("NonExistent", 2);
+
+        result.Should().StartWith("Error:");
+        result.Should().Contain("NonExistent");
+    }
 }

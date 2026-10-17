@@ -608,6 +608,82 @@ public class FlaUIAdapter : IDriver
     }
 
     /// <summary>
+    /// Returns titles of all open top-level windows belonging to the application process.
+    /// </summary>
+    public IReadOnlyList<string> GetOpenWindowTitles()
+    {
+        if (_application == null) return Array.Empty<string>();
+
+        var windows = _application.GetAllTopLevelWindows(_automation);
+        var titles = new List<string>();
+        foreach (var w in windows)
+        {
+            try
+            {
+                var title = w.Title;
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    titles.Add(title);
+                }
+            }
+            catch
+            {
+                // Ignore transient window errors
+            }
+        }
+        return titles;
+    }
+
+    /// <summary>
+    /// Switches the active automation context to a window matching the specified title (exact or substring).
+    /// </summary>
+    public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null)
+    {
+        if (_application == null) return false;
+        var limit = timeout ?? TimeSpan.FromSeconds(5);
+        var start = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - start < limit)
+        {
+            var windows = _application.GetAllTopLevelWindows(_automation);
+            foreach (var w in windows)
+            {
+                try
+                {
+                    if (w.Title?.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        _mainWindow = w;
+                        try { w.Focus(); } catch { }
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Window might be transitioning
+                }
+            }
+            Thread.Sleep(200);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Closes the currently active window.
+    /// </summary>
+    public void CloseCurrentWindow()
+    {
+        try
+        {
+            _mainWindow?.Close();
+        }
+        catch
+        {
+            // Ignore
+        }
+    }
+
+    /// <summary>
     /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()

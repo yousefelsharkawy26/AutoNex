@@ -161,4 +161,24 @@ public interface IDriver : IDisposable
     /// </summary>
     /// <param name="format">Format of the dump: "text" (default, minimal tokens) or "json".</param>
     string GetCompactUiTree(string format = "text");
+
+    // ── Window & Multi-Window Management ──────────────────────────────────────
+
+    /// <summary>
+    /// Returns titles of all open top-level windows belonging to the application process.
+    /// </summary>
+    IReadOnlyList<string> GetOpenWindowTitles();
+
+    /// <summary>
+    /// Switches the active automation context to a window matching the specified title (exact or substring).
+    /// </summary>
+    /// <param name="titleSubstring">Substring or title of the target window.</param>
+    /// <param name="timeout">Optional timeout to locate the window.</param>
+    /// <returns>True if switched successfully; otherwise false.</returns>
+    bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Closes the currently active window. If it is the last window, the application terminates.
+    /// </summary>
+    void CloseCurrentWindow();
 }
