@@ -194,6 +194,7 @@ in a single `stryker-config` root object.
 
 ## Documentation
 
+- [AI Agent Desktop Automation Guide (Token-Efficient)](AGENT_AUTOMATION_GUIDE.md)
 - [Milestone 1 Completion Details](MILESTONE_1_COMPLETE.md)
 - [Milestone 2 Progress](MILESTONE_2_PROGRESS.md)
 - [Milestone 3 Summary](MILESTONE_3_SUMMARY.md)
