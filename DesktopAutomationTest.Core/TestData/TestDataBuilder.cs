@@ -112,3 +112,114 @@ public class UserBuilder : TestDataBuilder<User>
         };
     }
 }
+
+/// <summary>
+/// Test data builder for TestResult objects.
+/// </summary>
+public class TestResultBuilder : TestDataBuilder<TestResult>
+{
+    protected override TestResult CreateDefault()
+    {
+        return new TestResult
+        {
+            TestName = "DefaultTest",
+            Passed = true,
+            ExecutionTime = TimeSpan.FromMilliseconds(500),
+            ErrorMessage = null,
+            Timestamp = DateTime.UtcNow
+        };
+    }
+
+    public TestResultBuilder WithTestName(string testName)
+    {
+        _instance.TestName = testName;
+        return this;
+    }
+
+    public TestResultBuilder WithPassed(bool passed)
+    {
+        _instance.Passed = passed;
+        return this;
+    }
+
+    public TestResultBuilder WithExecutionTime(TimeSpan executionTime)
+    {
+        _instance.ExecutionTime = executionTime;
+        return this;
+    }
+
+    public TestResultBuilder WithErrorMessage(string? errorMessage)
+    {
+        _instance.ErrorMessage = errorMessage;
+        return this;
+    }
+
+    public TestResultBuilder WithMetadata(string key, string value)
+    {
+        _instance.AddMetadata(key, value);
+        return this;
+    }
+}
+
+/// <summary>
+/// Represents configuration options for launching and running an application under test.
+/// </summary>
+public class AppConfig
+{
+    public string ExecutablePath { get; set; } = string.Empty;
+    public string Arguments { get; set; } = string.Empty;
+    public TimeSpan LaunchTimeout { get; set; } = TimeSpan.FromSeconds(10);
+    public bool MaximizeOnStartup { get; set; }
+    public int WindowWidth { get; set; } = 800;
+    public int WindowHeight { get; set; } = 600;
+}
+
+/// <summary>
+/// Test data builder for AppConfig objects.
+/// </summary>
+public class AppConfigBuilder : TestDataBuilder<AppConfig>
+{
+    protected override AppConfig CreateDefault()
+    {
+        return new AppConfig
+        {
+            ExecutablePath = "SampleApp.exe",
+            Arguments = string.Empty,
+            LaunchTimeout = TimeSpan.FromSeconds(10),
+            MaximizeOnStartup = false,
+            WindowWidth = 800,
+            WindowHeight = 600
+        };
+    }
+
+    public AppConfigBuilder WithExecutablePath(string path)
+    {
+        _instance.ExecutablePath = path;
+        return this;
+    }
+
+    public AppConfigBuilder WithArguments(string args)
+    {
+        _instance.Arguments = args;
+        return this;
+    }
+
+    public AppConfigBuilder WithLaunchTimeout(TimeSpan timeout)
+    {
+        _instance.LaunchTimeout = timeout;
+        return this;
+    }
+
+    public AppConfigBuilder WithMaximizeOnStartup(bool maximize)
+    {
+        _instance.MaximizeOnStartup = maximize;
+        return this;
+    }
+
+    public AppConfigBuilder WithWindowSize(int width, int height)
+    {
+        _instance.WindowWidth = width;
+        _instance.WindowHeight = height;
+        return this;
+    }
+}

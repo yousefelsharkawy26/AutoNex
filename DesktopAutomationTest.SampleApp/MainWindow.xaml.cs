@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -45,5 +45,13 @@ public partial class MainWindow : Window
 
         ResultTextBlock.Text = $"Hello, {firstName} {lastName}! You are {age} years old.";
         ResultTextBlock.Foreground = System.Windows.Media.Brushes.Green;
+    }
+
+    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    {
+        FirstNameTextBox.Text = string.Empty;
+        LastNameTextBox.Text = string.Empty;
+        AgeTextBox.Text = string.Empty;
+        ResultTextBlock.Text = string.Empty;
     }
 }

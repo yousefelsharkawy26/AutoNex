@@ -32,27 +32,32 @@ public class MainWindowPage : IDisposable
     /// <summary>
     /// Gets the First Name text box as an AutomationElement.
     /// </summary>
-    public AutomationElement FirstNameTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("FirstNameTextBox"));
+    public AutomationElement? FirstNameTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("FirstNameTextBox"));
 
     /// <summary>
     /// Gets the Last Name text box as an AutomationElement.
     /// </summary>
-    public AutomationElement LastNameTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("LastNameTextBox"));
+    public AutomationElement? LastNameTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("LastNameTextBox"));
 
     /// <summary>
     /// Gets the Age text box as an AutomationElement.
     /// </summary>
-    public AutomationElement AgeTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("AgeTextBox"));
+    public AutomationElement? AgeTextBoxElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("AgeTextBox"));
 
     ///<summary>
     /// Gets the Submit button as an AutomationElement.
     /// </summary>
-    public AutomationElement SubmitButtonElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("SubmitButton"));
+    public AutomationElement? SubmitButtonElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("SubmitButton"));
+
+    /// <summary>
+    /// Gets the Clear button as an AutomationElement.
+    /// </summary>
+    public AutomationElement? ClearButtonElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("ClearButton"));
 
     /// <summary>
     /// Gets the Result text block as an AutomationElement.
     /// </summary>
-    public AutomationElement ResultTextBlockElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("ResultTextBlock"));
+    public AutomationElement? ResultTextBlockElement => _window.FindFirstDescendant(cf => cf.ByAutomationId("ResultTextBlock"));
 
     #endregion
 
@@ -99,6 +104,15 @@ public class MainWindowPage : IDisposable
     }
 
     /// <summary>
+    /// Clicks the Clear button.
+    /// </summary>
+    /// <returns>True if the button was clicked successfully.</returns>
+    public bool ClickClear()
+    {
+        return _driver.ClickByAutomationId("ClearButton");
+    }
+
+    /// <summary>
     /// Gets the text from the First Name field.
     /// </summary>
     /// <returns>The first name text, or empty string if the element is not found.</returns>
@@ -141,7 +155,7 @@ public class MainWindowPage : IDisposable
     /// Gets the text from the Result field.
     /// </summary>
     /// <returns>The result text, or null if the element is not found.</returns>
-    public string GetResultText()
+    public string? GetResultText()
     {
         var element = ResultTextBlockElement;
         if (element == null)

@@ -11,7 +11,7 @@ namespace DesktopAutomationTest.Tests.StepDefinitions;
 public class SampleAppSteps
 {
     private readonly IDriver _driver;
-    private MainWindowPage _mainWindow;
+    private MainWindowPage? _mainWindow;
     private bool _isInitialized;
 
     public SampleAppSteps(IDriver driver)
@@ -100,7 +100,7 @@ public class SampleAppSteps
     {
         if (PlatformGuard.IsWindows && _mainWindow != null)
         {
-            _mainWindow.ClearAllFields();
+            _mainWindow.ClickClear();
         }
         // On non-Windows, we simulate the action (no actual UI interaction)
     }

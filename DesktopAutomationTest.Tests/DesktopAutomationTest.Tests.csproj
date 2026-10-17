@@ -1,12 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <UseWPF>true</UseWPF>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>
@@ -48,7 +46,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DesktopAutomationTest.Core\DesktopAutomationTest.Core.csproj" />
-    <ProjectReference Include="..\DesktopAutomationTest.SampleApp\DesktopAutomationTest.SampleApp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -60,6 +57,8 @@
     <None Update="Baselines\**\*" CopyToOutputDirectory="PreserveNewest" />
     <!-- Reqnroll discovers .feature files through None items; without this no scenario is generated. -->
     <None Update="Features\**\*.feature" CopyToOutputDirectory="PreserveNewest" />
+    <!-- xUnit execution configuration -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

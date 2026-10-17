@@ -86,6 +86,7 @@ public static class ReqnrollServices
                     automationId == "LastNameTextBox" || 
                     automationId == "AgeTextBox" || 
                     automationId == "SubmitButton" || 
+                    automationId == "ClearButton" || 
                     automationId == "ResultTextBlock");
         }
 

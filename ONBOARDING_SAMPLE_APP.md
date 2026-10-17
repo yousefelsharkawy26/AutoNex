@@ -20,6 +20,7 @@ All interactive elements have been assigned Automation IDs for reliable test aut
 | Last Name Input | LastNameTextBox | TextBox |
 | Age Input | AgeTextBox | TextBox |
 | Submit Button | SubmitButton | Button |
+| Clear Button | ClearButton | Button |
 | Result Display | ResultTextBlock | TextBlock |
 
 ## Application Behavior

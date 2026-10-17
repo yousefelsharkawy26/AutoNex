@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,9 +8,5 @@
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\DesktopAutomationTest.Core\DesktopAutomationTest.Core.csproj" />
-  </ItemGroup>
 
 </Project>
