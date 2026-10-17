@@ -142,10 +142,50 @@ Add this to your MCP configuration file (e.g. `claude_desktop_config.json` or yo
 }
 ```
 
-### Exposed MCP Tools:
-1. **`launch_application`**: Starts the desktop app and connects FlaUI.
+### Exposed MCP Tools (9 Tools Total - v1.2.0):
+1. **`launch_application`**: Starts the desktop app and connects FlaUI driver.
 2. **`inspect_screen`**: Returns compact UI elements hierarchy (~90% fewer tokens).
 3. **`execute_plan`**: Runs a multi-step batch in a single tool call with auto-healing and delta tracking.
-4. **`close_application`**: Cleanly shuts down the app and frees memory.
+4. **`wait_for_element`**: Polls until an element appears (configurable timeout, fails fast).
+5. **`get_element_text`**: Lightweight read of a specific element's text without re-scanning the screen.
+6. **`take_screenshot`**: Captures screen to PNG when visual verification is explicitly necessary.
+7. **`record_session`**: Executes a plan AND records every action + result into a session JSON file.
+8. **`replay_session`**: Replays a previously recorded session with **ZERO LLM tokens**.
+9. **`close_application`**: Cleanly shuts down the app and frees memory.
+
+---
+
+## 🔁 Step 4: Zero-Token Replay Strategy
+
+Once an AI Agent successfully navigates and automates a scenario, it can persist the session:
+1. Use `record_session` (or `autonex record`) to execute the plan and save `session.json`.
+2. On subsequent regression test runs, use `replay_session` (or `autonex replay`).
+3. **Cost**: **0 LLM Tokens consumed**. The engine replays native actions and handles any slight UI ID shifts using `FuzzyLocator` self-healing.
+
+---
+
+## 💻 Step 5: AutoNex CLI Tool (`autonex`)
+
+You can also run token-efficient automation directly from the terminal or CI/CD pipelines:
+
+```bash
+# Dump interactive UI elements (compact format)
+autonex inspect --app "C:\MyApp\MyApp.exe"
+
+# Execute a JSON batch plan
+autonex run --app "C:\MyApp\MyApp.exe" --plan ./login_plan.json
+
+# Record an automation flow for future zero-token replays
+autonex record --app "C:\MyApp\MyApp.exe" --plan ./login_plan.json --out ./sessions/login.json --label "Login Flow"
+
+# Replay a session at zero token cost
+autonex replay --app "C:\MyApp\MyApp.exe" --session ./sessions/login.json
+
+# Utility commands
+autonex wait --app "C:\MyApp\MyApp.exe" --id SubmitButton --timeout 15
+autonex text --app "C:\MyApp\MyApp.exe" --id ResultLabel
+autonex shot --app "C:\MyApp\MyApp.exe" --out ./screenshot.png
+```
+
 
 
