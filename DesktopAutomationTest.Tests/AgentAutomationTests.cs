@@ -508,4 +508,91 @@ public class AgentAutomationTests
         result.Should().StartWith("Error:");
         result.Should().Contain("NonExistent");
     }
+
+    // ── [SESSION-TO-TEST] Generator Tests ────────────────────────────────────
+
+    [Fact]
+    public void SessionTestGenerator_GenerateCSharpTest_ProducesValidCSharpMethod()
+    {
+        var session = new SessionRecord
+        {
+            SessionId = "test-export",
+            AppPath = "C:\\Apps\\Sample.exe",
+            Label = "User Registration Flow",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "type", AutomationId = "UsernameTextBox", Value = "JohnDoe" },
+                new() { Index = 1, Action = "click", AutomationId = "RegisterButton" },
+                new() { Index = 2, Action = "assert_text", AutomationId = "SuccessLabel", Value = "Welcome" }
+            }
+        };
+
+        var code = SessionTestGenerator.GenerateCSharpTest(session);
+
+        code.Should().Contain("[Fact]");
+        code.Should().Contain("public void User_Registration_Flow()");
+        code.Should().Contain("driver.TypeTextByAutomationId(\"UsernameTextBox\", \"JohnDoe\")");
+        code.Should().Contain("driver.ClickByAutomationId(\"RegisterButton\")");
+        code.Should().Contain("text2.Should().Contain(\"Welcome\")");
+    }
+
+    [Fact]
+    public void SessionTestGenerator_GenerateGherkinScenario_ProducesValidGherkin()
+    {
+        var session = new SessionRecord
+        {
+            SessionId = "test-gherkin",
+            AppPath = "App.exe",
+            Label = "Login Feature",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "type", AutomationId = "Email", Value = "test@example.com" },
+                new() { Index = 1, Action = "click", AutomationId = "LoginBtn" },
+                new() { Index = 2, Action = "assert_text", AutomationId = "Dashboard", Value = "Overview" }
+            }
+        };
+
+        var gherkin = SessionTestGenerator.GenerateGherkinScenario(session);
+
+        gherkin.Should().Contain("Scenario: Login Feature");
+        gherkin.Should().Contain("Given the application \"App.exe\" is launched");
+        gherkin.Should().Contain("When I type \"test@example.com\" into \"Email\"");
+        gherkin.Should().Contain("When I click \"LoginBtn\"");
+        gherkin.Should().Contain("Then \"Dashboard\" should contain text \"Overview\"");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ExportSessionAsTest_ExportsCSharpAndGherkinFromFile()
+    {
+        var mockDriver = new Mock<IDriver>();
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"gen_test_{Guid.NewGuid():N}.json");
+        var session = new SessionRecord
+        {
+            SessionId = "gen-check",
+            Label = "Test Flow",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "click", AutomationId = "StartBtn" }
+            }
+        };
+
+        try
+        {
+            File.WriteAllText(tempPath, System.Text.Json.JsonSerializer.Serialize(session));
+
+            var csResult = engine.ExportSessionAsTest(tempPath, "csharp");
+            csResult.Should().Contain("public class RecordedFlowTests");
+            csResult.Should().Contain("StartBtn");
+
+            var ghResult = engine.ExportSessionAsTest(tempPath, "gherkin");
+            ghResult.Should().Contain("Scenario: Test Flow");
+            ghResult.Should().Contain("When I click \"StartBtn\"");
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
 }

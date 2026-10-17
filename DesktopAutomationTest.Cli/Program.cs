@@ -17,6 +17,7 @@ namespace DesktopAutomationTest.Cli;
 ///   autonex shot     --app &lt;path&gt; [--out &lt;file.png&gt;]
 ///   autonex record  --app <path> --plan <file.json> [--out <session.json>] [--label <text>]
 ///   autonex replay  --app <path> --session <file.json>
+///   autonex export  --session <file.json> [--format csharp|gherkin] [--out <file>]
 ///   autonex help
 /// </summary>
 internal class Program
@@ -42,6 +43,7 @@ internal class Program
             "shot"    => RunShot(parsed),
             "record"  => RunRecord(parsed),
             "replay"  => RunReplay(parsed),
+            "export"  => RunExport(parsed),
             _         => UnknownCommand(command)
         };
     }
@@ -179,6 +181,58 @@ internal class Program
         return result.Contains("FAILED") || result.StartsWith("error") ? 1 : 0;
     }
 
+
+    static int RunExport(ParsedArgs p)
+    {
+        RequireArg(p, "session");
+
+        var sessionFile = p.Get("session")!;
+        if (!File.Exists(sessionFile))
+        {
+            Console.Error.WriteLine($"Error: session file not found: {sessionFile}");
+            return 1;
+        }
+
+        var format  = p.Get("format", "csharp") ?? "csharp";
+        var outFile = p.Get("out");
+
+        // We don't need a live app launched just to export code
+        string code;
+        try
+        {
+            var json = File.ReadAllText(sessionFile);
+            var session = System.Text.Json.JsonSerializer.Deserialize<SessionRecord>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (session == null)
+            {
+                Console.Error.WriteLine("Error: failed to parse session file.");
+                return 1;
+            }
+
+            code = string.Equals(format, "gherkin", StringComparison.OrdinalIgnoreCase)
+                ? SessionTestGenerator.GenerateGherkinScenario(session)
+                : SessionTestGenerator.GenerateCSharpFixture(session);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+
+        if (!string.IsNullOrEmpty(outFile))
+        {
+            File.WriteAllText(outFile, code);
+            Console.WriteLine($"✓ Exported {format} test to: {outFile}");
+        }
+        else
+        {
+            Console.WriteLine(code);
+        }
+
+        return 0;
+    }
+
     static int UnknownCommand(string cmd)
     {
         Console.Error.WriteLine($"Error: Unknown command '{cmd}'. Run 'autonex help' for usage.");
@@ -233,7 +287,7 @@ internal class Program
               --id <id>          Automation ID of the target element     [wait, text]
               --timeout <secs>   Wait timeout in seconds (default: 10)  [wait]
               --out <file>       Output path for screenshot PNG / session JSON [shot, record]
-              --session <file>   Path to session JSON file                  [replay]
+              --session <file>   Path to session JSON file                  [replay, export]
               --label <text>     Label for the recorded session             [record]
 
             EXAMPLES:

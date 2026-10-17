@@ -42,7 +42,7 @@ public class Program
                     {
                         protocolVersion = "2024-11-05",
                         capabilities = new { tools = new { } },
-                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.3.0" }
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.4.0" }
                     });
                 }
                 else if (method == "notifications/initialized")
@@ -243,6 +243,21 @@ public class Program
             },
                         new
             {
+                name = "export_session_as_test",
+                description = "Converts a recorded session JSON file into executable C# xUnit test code or a Gherkin/Reqnroll feature scenario.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        session_path = new { type = "string", description = "Path to the recorded session JSON file." },
+                        format = new { type = "string", @enum = new[] { "csharp", "gherkin" }, description = "Output format: 'csharp' (default) or 'gherkin'." }
+                    },
+                    required = new[] { "session_path" }
+                }
+            },
+                        new
+            {
                 name = "close_application",
                 description = "Closes the running application and frees automation resources.",
                 inputSchema = new { type = "object", properties = new { } }
@@ -382,6 +397,18 @@ public class Program
 
                 var winTimeout = arguments.TryGetProperty("timeout_seconds", out var wt) ? wt.GetInt32() : 5;
                 return _engine.SwitchWindow(winTitle, winTimeout);
+
+            case "export_session_as_test":
+                var expSessionPath = arguments.GetProperty("session_path").GetString();
+                if (string.IsNullOrEmpty(expSessionPath))
+                {
+                    return "Error: session_path is required.";
+                }
+
+                var expFormat = arguments.TryGetProperty("format", out var ef) ? ef.GetString() ?? "csharp" : "csharp";
+                // Engine or standalone generator can be called directly
+                var engineToUse = _engine ?? new AgentAutomationEngine(DriverFactory.CreateFlauiDriver());
+                return engineToUse.ExportSessionAsTest(expSessionPath, expFormat);
 
             case "close_application":
                 _driver?.Dispose();

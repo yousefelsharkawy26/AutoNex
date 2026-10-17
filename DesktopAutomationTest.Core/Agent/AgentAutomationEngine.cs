@@ -177,4 +177,42 @@ public class AgentAutomationEngine
         _driver.CloseCurrentWindow();
         return "Current window closed.";
     }
+
+    // ── [SESSION-TO-TEST] Export Session to C# or Gherkin ─────────────────────
+
+    /// <summary>
+    /// Loads a recorded session JSON and exports it as C# xUnit code or Gherkin BDD scenario.
+    /// </summary>
+    /// <param name="sessionFilePath">Path to the session JSON file.</param>
+    /// <param name="format">Format: "csharp" (default) or "gherkin".</param>
+    public string ExportSessionAsTest(string sessionFilePath, string format = "csharp")
+    {
+        if (!File.Exists(sessionFilePath))
+        {
+            return $"Error: session file not found: {sessionFilePath}";
+        }
+
+        try
+        {
+            var json = File.ReadAllText(sessionFilePath);
+            var session = JsonSerializer.Deserialize<SessionRecord>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (session == null)
+            {
+                return "Error: failed to deserialize session file.";
+            }
+
+            if (string.Equals(format, "gherkin", StringComparison.OrdinalIgnoreCase))
+            {
+                return SessionTestGenerator.GenerateGherkinScenario(session);
+            }
+
+            return SessionTestGenerator.GenerateCSharpFixture(session);
+        }
+        catch (Exception ex)
+        {
+            return $"Error exporting test: {ex.Message}";
+        }
+    }
 }
