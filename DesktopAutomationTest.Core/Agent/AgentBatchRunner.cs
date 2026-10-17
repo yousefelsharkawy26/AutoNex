@@ -9,6 +9,7 @@ namespace DesktopAutomationTest.Core.Agent;
 public class AgentBatchRunner
 {
     private readonly IDriver _driver;
+    private readonly AgentStateTracker _stateTracker = new();
 
     public AgentBatchRunner(IDriver driver)
     {
@@ -87,7 +88,8 @@ public class AgentBatchRunner
                     ExecutedStepsCount = i + 1,
                     TotalStepsCount = actionList.Count,
                     Error = error,
-                    Steps = stepResults
+                    Steps = stepResults,
+                    Delta = ComputeCurrentDelta()
                 };
             }
         }
@@ -97,8 +99,35 @@ public class AgentBatchRunner
             Success = true,
             ExecutedStepsCount = actionList.Count,
             TotalStepsCount = actionList.Count,
-            Steps = stepResults
+            Steps = stepResults,
+            Delta = ComputeCurrentDelta()
         };
+    }
+
+    private string? ComputeCurrentDelta()
+    {
+        try
+        {
+            var rawJson = _driver.GetCompactUiTree("json");
+            if (!string.IsNullOrEmpty(rawJson) && rawJson.StartsWith("["))
+            {
+                var elements = JsonSerializer.Deserialize<List<CompactUiElement>>(rawJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (elements != null)
+                {
+                    return _stateTracker.ComputeDeltaAndRecord(elements);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore delta extraction failures
+        }
+
+        return null;
     }
 
     private (bool Success, string? Error) ExecuteSingleAction(AgentAction action)

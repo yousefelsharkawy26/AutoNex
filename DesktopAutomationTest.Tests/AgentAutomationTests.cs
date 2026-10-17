@@ -190,5 +190,48 @@ public class AgentAutomationTests
         result.Success.Should().BeTrue();
         mockDriver.Verify(d => d.ClickByAutomationId("SubmitButton", null), Times.Once);
     }
+
+    [Fact]
+    public void AgentStateTracker_ComputeDeltaAndRecord_IdentifiesStateChanges()
+    {
+        var tracker = new AgentStateTracker();
+
+        var initial = new List<CompactUiElement>
+        {
+            new() { Type = "Edit", AutomationId = "FirstNameTextBox", Value = "" },
+            new() { Type = "Text", AutomationId = "ResultTextBlock", Value = "" }
+        };
+
+        tracker.ComputeDeltaAndRecord(initial);
+
+        var next = new List<CompactUiElement>
+        {
+            new() { Type = "Edit", AutomationId = "FirstNameTextBox", Value = "Sarah" },
+            new() { Type = "Text", AutomationId = "ResultTextBlock", Value = "Welcome Sarah!" },
+            new() { Type = "Button", AutomationId = "LogoutButton", Name = "Logout" }
+        };
+
+        var delta = tracker.ComputeDeltaAndRecord(next);
+
+        delta.Should().Contain("#FirstNameTextBox val: \"\" -> \"Sarah\"");
+        delta.Should().Contain("#ResultTextBlock val: \"\" -> \"Welcome Sarah!\"");
+        delta.Should().Contain("+ [Button #LogoutButton \"Logout\"]");
+    }
+
+    [Fact]
+    public void AgentStateTracker_ComputeDeltaAndRecord_ReturnsNoChange_WhenStateIdentical()
+    {
+        var tracker = new AgentStateTracker();
+
+        var elements = new List<CompactUiElement>
+        {
+            new() { Type = "Button", AutomationId = "SubmitButton", Name = "Submit" }
+        };
+
+        tracker.ComputeDeltaAndRecord(elements);
+        var delta = tracker.ComputeDeltaAndRecord(elements);
+
+        delta.Should().Be("No UI state change.");
+    }
 }
 

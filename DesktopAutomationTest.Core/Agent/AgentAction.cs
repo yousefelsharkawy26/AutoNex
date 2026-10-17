@@ -89,14 +89,23 @@ public record AgentBatchResult
     public List<ActionStepResult> Steps { get; init; } = new();
 
     /// <summary>
+    /// Optional delta diff describing what changed in the UI following the batch execution.
+    /// </summary>
+    [JsonPropertyName("delta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Delta { get; init; }
+
+    /// <summary>
     /// Compact single-line summary to return to the LLM agent.
-    /// Example: "SUCCESS: 4/4 steps executed" or "FAILED step 2 (click #Submit): element not found"
+    /// Example: "SUCCESS: 4/4 steps executed | Delta: #ResultTextBlock val: ... "
     /// </summary>
     public string ToCompactSummary()
     {
+        var deltaPart = !string.IsNullOrEmpty(Delta) ? $" | {Delta}" : "";
+
         if (Success)
         {
-            return $"SUCCESS: {ExecutedStepsCount}/{TotalStepsCount} steps executed successfully.";
+            return $"SUCCESS: {ExecutedStepsCount}/{TotalStepsCount} steps executed successfully.{deltaPart}";
         }
 
         var failedStep = Steps.Find(s => !s.Success);
@@ -104,7 +113,7 @@ public record AgentBatchResult
             ? $"Step {failedStep.StepIndex + 1} ({failedStep.Action} #{failedStep.TargetId}): {failedStep.ErrorMessage}" 
             : Error;
 
-        return $"FAILED at {detail} (Completed {ExecutedStepsCount}/{TotalStepsCount})";
+        return $"FAILED at {detail} (Completed {ExecutedStepsCount}/{TotalStepsCount}){deltaPart}";
     }
 }
 
