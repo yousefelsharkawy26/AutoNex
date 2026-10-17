@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>autonex</AssemblyName>
+    <RootNamespace>DesktopAutomationTest.Cli</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- dotnet tool metadata -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>autonex</ToolCommandName>
+    <PackageId>AutoNex.Cli</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>AutoNex</Authors>
+    <Description>AutoNex CLI — Token-efficient desktop UI automation agent tool. Inspect, run plans, launch apps — all from the terminal.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DesktopAutomationTest.Core\DesktopAutomationTest.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Include README in the package -->
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" Condition="Exists('..\README.md')" />
+  </ItemGroup>
+
+</Project>

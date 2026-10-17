@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="DesktopAutomationTest.Cli/DesktopAutomationTest.Cli.csproj" />
   <Project Path="DesktopAutomationTest.Core/DesktopAutomationTest.Core.csproj" />
   <Project Path="DesktopAutomationTest.Tests/DesktopAutomationTest.Tests.csproj" />
   <Project Path="DesktopAutomationTest.McpServer/DesktopAutomationTest.McpServer.csproj" />
