@@ -79,6 +79,33 @@ jobs:
           DesktopAutomationTest.Tests/TestResults/VisualDiffs/**/*
         retention-days: 14
         
+
+    - name: Build MCP Server
+      run: dotnet build DesktopAutomationTest.McpServer/DesktopAutomationTest.McpServer.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Build CLI Tool
+      run: dotnet build DesktopAutomationTest.Cli/DesktopAutomationTest.Cli.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Pack CLI as dotnet tool
+      run: dotnet pack DesktopAutomationTest.Cli/DesktopAutomationTest.Cli.csproj --configuration ${{ env.CONFIGURATION }} --no-build --output ./nupkg
+
+    - name: Upload CLI NuGet package
+      uses: actions/upload-artifact@v4
+      with:
+        name: autonex-cli-nupkg-${{ github.run_id }}
+        path: ./nupkg/*.nupkg
+        retention-days: 30
+
+    - name: Publish MCP Server (self-contained win-x64)
+      run: dotnet publish DesktopAutomationTest.McpServer/DesktopAutomationTest.McpServer.csproj -r win-x64 --self-contained true -c ${{ env.CONFIGURATION }} -o ./publish/mcp-server
+
+    - name: Upload MCP Server binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: autonex-mcp-server-${{ github.run_id }}
+        path: ./publish/mcp-server/
+        retention-days: 30
+
     - name: Report test results
       if: always()
       uses: dorny/test-reporter@v1
