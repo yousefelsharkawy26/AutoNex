@@ -102,27 +102,37 @@ public static class ReqnrollServices
             return TryFindByAutomationId(automationId, timeout);
         }
 
-        public bool SelectComboBoxItemByAutomationId(string automationId, string item, TimeSpan? timeout = null)
+        public bool SelectComboBoxItemByText(string automationId, string text, TimeSpan? timeout = null)
         {
             return TryFindByAutomationId(automationId, timeout);
         }
 
-        public bool SelectComboBoxItemByIndex(int index, string automationId, TimeSpan? timeout = null)
+        public bool SelectComboBoxItemByIndex(string automationId, int index, TimeSpan? timeout = null)
         {
             return TryFindByAutomationId(automationId, timeout);
         }
 
-        public bool ToggleToggleButtonByAutomationId(string automationId, TimeSpan? timeout = null)
+        public string? GetSelectedComboBoxItem(string automationId, TimeSpan? timeout = null)
+        {
+            return TryFindByAutomationId(automationId, timeout) ? "DefaultItem" : null;
+        }
+
+        public bool SetCheckboxByAutomationId(string automationId, bool isChecked, TimeSpan? timeout = null)
         {
             return TryFindByAutomationId(automationId, timeout);
         }
 
-        public bool SetCheckboxByAutomationId(string automationId, bool @checked, TimeSpan? timeout = null)
+        public bool IsCheckboxChecked(string automationId, TimeSpan? timeout = null)
         {
             return TryFindByAutomationId(automationId, timeout);
         }
 
-        public bool SetRadioButtonByAutomationId(string automationId, bool @checked, TimeSpan? timeout = null)
+        public bool SelectRadioButtonByAutomationId(string automationId, TimeSpan? timeout = null)
+        {
+            return TryFindByAutomationId(automationId, timeout);
+        }
+
+        public bool IsRadioButtonSelected(string automationId, TimeSpan? timeout = null)
         {
             return TryFindByAutomationId(automationId, timeout);
         }

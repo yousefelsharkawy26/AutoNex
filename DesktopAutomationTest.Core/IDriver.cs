@@ -69,4 +69,42 @@ public interface IDriver : IDisposable
     /// <param name="timeout">The maximum time to wait for the application to be idle.</param>
     /// <returns>True if the application became idle within the timeout; otherwise, false.</returns>
     bool WaitForInputIdle(TimeSpan timeout);
+
+    // TODO: [FEATURE-CONTROLS] CheckBox automation support
+    /// <summary>
+    /// Sets the checked state of a CheckBox element identified by its automation ID.
+    /// </summary>
+    bool SetCheckboxByAutomationId(string automationId, bool isChecked, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Checks whether a CheckBox element is currently checked.
+    /// </summary>
+    bool IsCheckboxChecked(string automationId, TimeSpan? timeout = null);
+
+    // TODO: [FEATURE-CONTROLS] ComboBox automation support
+    /// <summary>
+    /// Selects an item from a ComboBox by its display text.
+    /// </summary>
+    bool SelectComboBoxItemByText(string automationId, string text, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Selects an item from a ComboBox by its zero-based index.
+    /// </summary>
+    bool SelectComboBoxItemByIndex(string automationId, int index, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Retrieves the text of the currently selected item in a ComboBox.
+    /// </summary>
+    string? GetSelectedComboBoxItem(string automationId, TimeSpan? timeout = null);
+
+    // TODO: [FEATURE-CONTROLS] RadioButton automation support
+    /// <summary>
+    /// Selects a RadioButton element identified by its automation ID.
+    /// </summary>
+    bool SelectRadioButtonByAutomationId(string automationId, TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Checks whether a RadioButton element is currently selected.
+    /// </summary>
+    bool IsRadioButtonSelected(string automationId, TimeSpan? timeout = null);
 }

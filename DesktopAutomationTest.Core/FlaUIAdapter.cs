@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Threading;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Capturing;
 using FlaUI.Core.Definitions;
 using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
 using FlaUI.UIA3;
-using DesktopAutomationTest.Core;
 
 namespace DesktopAutomationTest.Core;
 
@@ -23,17 +24,22 @@ public class FlaUIAdapter : IDriver
     private bool _disposed;
 
     /// <summary>
-    /// Gets the main window of the application.
-    /// </summary>
-    public Window? MainWindow => _mainWindow;
-
-    /// <summary>
     /// Initializes a new instance of the <see cref="FlaUIAdapter"/> class.
     /// </summary>
     public FlaUIAdapter()
     {
         _automation = new UIA3Automation();
     }
+
+    /// <summary>
+    /// Gets the underlying FlaUI application instance.
+    /// </summary>
+    public Application? Application => _application;
+
+    /// <summary>
+    /// Gets the main window of the application.
+    /// </summary>
+    public Window? MainWindow => _mainWindow;
 
     /// <summary>
     /// Initializes the driver with the specified application path.
@@ -56,23 +62,36 @@ public class FlaUIAdapter : IDriver
         }
     }
 
+    // Helper: Finds descendant element with polling timeout
+    private AutomationElement? FindElement(string automationId, TimeSpan? timeout = null)
+    {
+        var findTimeout = timeout ?? TimeSpan.FromSeconds(5);
+        var startTime = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - startTime <= findTimeout)
+        {
+            var element = _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            if (element != null)
+            {
+                return element;
+            }
+            Thread.Sleep(50);
+        }
+
+        return _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+    }
+
+    // TODO: [FEATURE-TIMEOUT-LOOKUP] Polling with timeout for element lookup
     /// <summary>
-    /// Finds an element by its automation ID.
+    /// Finds an element by its automation ID within the specified timeout.
     /// </summary>
-    /// <param name="automationId">The automation ID of the element.</param>
-    /// <param name="timeout">Optional timeout for finding the element.</param>
-    /// <returns>True if the element was found; otherwise, false.</returns>
     public bool TryFindByAutomationId(string automationId, TimeSpan? timeout = null)
     {
         Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
 
         try
         {
-            var findTimeout = timeout ?? TimeSpan.FromSeconds(10);
-            // Try different overload of FindFirstDescendant
-            var element = _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
-            // Apply timeout using Waiting.Until or similar if needed
-            // For now, we'll just check if element is found immediately
+            var element = FindElement(automationId, timeout);
             return element != null;
         }
         catch (Exception)
@@ -84,29 +103,18 @@ public class FlaUIAdapter : IDriver
     /// <summary>
     /// Clicks on an element identified by its automation ID.
     /// </summary>
-    /// <param name="automationId">The automation ID of the element to click.</param>
-    /// <param name="timeout">Optional timeout for finding the element.</param>
-    /// <returns>True if the element was clicked; otherwise, false.</returns>
     public bool ClickByAutomationId(string automationId, TimeSpan? timeout = null)
     {
         Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
 
         try
         {
-            var findTimeout = timeout ?? TimeSpan.FromSeconds(10);
-            // Try different overload of FindFirstDescendant
-            var element = _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
-            if (element == null)
+            var element = FindElement(automationId, timeout);
+            if (element == null || !element.Properties.IsEnabled)
                 return false;
-
-            if (!element.Properties.IsEnabled)
-            {
-                return false;
-            }
 
             element.Click();
-            // Small wait to allow UI to process the click
-            Thread.Sleep(100);
+            Thread.Sleep(50);
             return true;
         }
         catch (Exception)
@@ -115,13 +123,10 @@ public class FlaUIAdapter : IDriver
         }
     }
 
+    // TODO: [FEATURE-TYPETEXT] Real text typing via TextBox pattern, ValuePattern, or Keyboard
     /// <summary>
     /// Types text into an element identified by its automation ID.
     /// </summary>
-    /// <param name="automationId">The automation ID of the element.</param>
-    /// <param name="text">The text to type.</param>
-    /// <param name="timeout">Optional timeout for finding the element.</param>
-    /// <returns>True if the text was typed; otherwise, false.</returns>
     public bool TypeTextByAutomationId(string automationId, string text, TimeSpan? timeout = null)
     {
         Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
@@ -129,18 +134,27 @@ public class FlaUIAdapter : IDriver
 
         try
         {
-            var findTimeout = timeout ?? TimeSpan.FromSeconds(10);
-            // Try different overload of FindFirstDescendant
-            var element = _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            var element = FindElement(automationId, timeout);
             if (element == null)
                 return false;
 
             element.Focus();
-            // Small wait to ensure focus is set
             Thread.Sleep(50);
-            // TODO: Proper text setting requires Value pattern or SendKeys
-            // For now, we'll simulate typing by setting the value if possible
-            // element.Properties.Name = text; // This is read-only, can't set it
+
+            var textBox = element.AsTextBox();
+            if (textBox != null && textBox.Patterns.Value.IsSupported)
+            {
+                textBox.Text = text;
+                return true;
+            }
+
+            if (element.Patterns.Value.IsSupported)
+            {
+                element.Patterns.Value.Pattern.SetValue(text);
+                return true;
+            }
+
+            Keyboard.Type(text);
             return true;
         }
         catch (Exception)
@@ -152,10 +166,6 @@ public class FlaUIAdapter : IDriver
     /// <summary>
     /// Gets the text of an element identified by its automation ID.
     /// </summary>
-    /// <param name="automationId">The automation ID of the element.</param>
-    /// <param name="text">When this method returns, contains the text of the element if found.</param>
-    /// <param name="timeout">Optional timeout for finding the element.</param>
-    /// <returns>True if the element was found and text retrieved; otherwise, false.</returns>
     public bool TryGetTextByAutomationId(string automationId, out string? text, TimeSpan? timeout = null)
     {
         Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
@@ -163,14 +173,17 @@ public class FlaUIAdapter : IDriver
 
         try
         {
-            var findTimeout = timeout ?? TimeSpan.FromSeconds(10);
-            // Try different overload of FindFirstDescendant
-            var element = _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            var element = FindElement(automationId, timeout);
             if (element == null)
                 return false;
 
-            // Try to get text from Name property (common for most UI elements)
-            // Note: For text-specific values, Value pattern might be needed
+            var textBox = element.AsTextBox();
+            if (textBox != null)
+            {
+                text = textBox.Text;
+                return true;
+            }
+
             text = element.Properties.Name;
             return true;
         }
@@ -180,61 +193,32 @@ public class FlaUIAdapter : IDriver
         }
     }
 
+    // TODO: [FEATURE-SCREENSHOT] Real UI window screenshot capturing via FlaUI.Core.Capturing
     /// <summary>
-    /// Takes a screenshot and saves it to the specified path.
+    /// Takes a screenshot of the main application window and saves it to disk.
     /// </summary>
-    /// <param name="filePath">The path where the screenshot should be saved.</param>
-    /// <returns>True if the screenshot was taken successfully; otherwise, false.</returns>
     public bool TakeScreenshot(string filePath)
     {
         Guard.AgainstNullOrEmpty(filePath, nameof(filePath));
 
         try
         {
-            // Ensure directory exists
-            var directory = System.IO.Path.GetDirectoryName(filePath);
+            var directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory))
             {
-                System.IO.Directory.CreateDirectory(directory);
+                Directory.CreateDirectory(directory);
             }
 
-            // Take screenshot of the main window
-            // TODO: Implement proper screenshot capture using FlaUI's imaging capabilities
-            System.Drawing.Bitmap? bitmap = null;
             if (_mainWindow != null)
             {
-                // TODO: Replace with actual FlaUI screenshot capture
-                // For now, creating a placeholder bitmap when window is available
-                bitmap = new System.Drawing.Bitmap(100, 100); // Placeholder
-                using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
-                {
-                    graphics.Clear(System.Drawing.Color.LightGray);
-                    graphics.DrawString("SCREENSHOT_FROM_WINDOW",
-                        new System.Drawing.Font("Arial", 10),
-                        System.Drawing.Brushes.Black,
-                        new System.Drawing.PointF(10, 40));
-                }
-            }
-            else
-            {
-                // Fallback placeholder when no window is available
-                bitmap = new System.Drawing.Bitmap(100, 100); // Placeholder
-                using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
-                {
-                    graphics.Clear(System.Drawing.Color.LightGray);
-                    graphics.DrawString("SCREENSHOT_PLACEHOLDER",
-                        new System.Drawing.Font("Arial", 10),
-                        System.Drawing.Brushes.Black,
-                        new System.Drawing.PointF(10, 40));
-                }
-            }
-
-            if (bitmap != null)
-            {
-                bitmap.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
+                using var captured = Capture.Element(_mainWindow);
+                captured.Bitmap.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
                 return true;
             }
-            return false;
+
+            using var fullScreen = Capture.Screen();
+            fullScreen.Bitmap.Save(filePath, System.Drawing.Imaging.ImageFormat.Png);
+            return true;
         }
         catch (Exception)
         {
@@ -245,7 +229,6 @@ public class FlaUIAdapter : IDriver
     /// <summary>
     /// Gets the current window bounds.
     /// </summary>
-    /// <returns>The bounding rectangle of the main application window.</returns>
     public Rectangle GetWindowBounds()
     {
         if (_mainWindow == null)
@@ -255,22 +238,193 @@ public class FlaUIAdapter : IDriver
         return new Rectangle(rect.Left, rect.Top, rect.Width, rect.Height);
     }
 
+    // TODO: [FEATURE-INPUTIDLE] Real application input idle synchronization
     /// <summary>
-    /// Waits for the application to be idle.
+    /// Waits for the application to be idle within the specified timeout.
     /// </summary>
-    /// <param name="timeout">The maximum time to wait for the application to be idle.</param>
-    /// <returns>True if the application became idle within the timeout; otherwise, false.</returns>
     public bool WaitForInputIdle(TimeSpan timeout)
     {
         try
         {
-            // TODO: Replace with proper FlaUI waiting mechanism to check if application is idle
-            if (_mainWindow == null)
-            {
-                return false; // Can't wait for input idle if no window
-            }
-            Thread.Sleep((int)timeout.TotalMilliseconds); // Wait for specified time
-            return true; // Assume application is idle after waiting (placeholder)
+            if (_application == null)
+                return false;
+
+            _application.WaitWhileBusy();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // TODO: [FEATURE-CHECKBOX] CheckBox state setting and reading
+    /// <summary>
+    /// Sets the checked state of a CheckBox element.
+    /// </summary>
+    public bool SetCheckboxByAutomationId(string automationId, bool isChecked, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            var checkBox = element.AsCheckBox();
+            if (checkBox == null)
+                return false;
+
+            checkBox.IsChecked = isChecked;
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a CheckBox element is currently checked.
+    /// </summary>
+    public bool IsCheckboxChecked(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            var checkBox = element.AsCheckBox();
+            return checkBox?.IsChecked == true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // TODO: [FEATURE-COMBOBOX] ComboBox selection by text/index and querying
+    /// <summary>
+    /// Selects an item from a ComboBox by its display text.
+    /// </summary>
+    public bool SelectComboBoxItemByText(string automationId, string text, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+        Guard.AgainstNull(text, nameof(text));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            var comboBox = element.AsComboBox();
+            if (comboBox == null)
+                return false;
+
+            comboBox.Select(text);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Selects an item from a ComboBox by its zero-based index.
+    /// </summary>
+    public bool SelectComboBoxItemByIndex(string automationId, int index, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            var comboBox = element.AsComboBox();
+            if (comboBox == null)
+                return false;
+
+            comboBox.Select(index);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Retrieves the text of the currently selected item in a ComboBox.
+    /// </summary>
+    public string? GetSelectedComboBoxItem(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return null;
+
+            var comboBox = element.AsComboBox();
+            return comboBox?.SelectedItem?.Text;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    // TODO: [FEATURE-RADIOBUTTON] RadioButton selection and query
+    /// <summary>
+    /// Selects a RadioButton element identified by its automation ID.
+    /// </summary>
+    public bool SelectRadioButtonByAutomationId(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            var radioButton = element.AsRadioButton();
+            if (radioButton == null)
+                return false;
+
+            radioButton.IsChecked = true;
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a RadioButton element is currently selected.
+    /// </summary>
+    public bool IsRadioButtonSelected(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            var radioButton = element.AsRadioButton();
+            return radioButton?.IsChecked == true;
         }
         catch (Exception)
         {
@@ -290,19 +444,16 @@ public class FlaUIAdapter : IDriver
     /// <summary>
     /// Releases unmanaged and - optionally - managed resources.
     /// </summary>
-    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed)
         {
             if (disposing)
             {
-                // Dispose managed resources
                 _application?.Close();
                 _automation?.Dispose();
             }
 
-            // Free unmanaged resources
             _disposed = true;
         }
     }
