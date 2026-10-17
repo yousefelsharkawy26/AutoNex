@@ -70,7 +70,6 @@ public interface IDriver : IDisposable
     /// <returns>True if the application became idle within the timeout; otherwise, false.</returns>
     bool WaitForInputIdle(TimeSpan timeout);
 
-    // TODO: [FEATURE-CONTROLS] CheckBox automation support
     /// <summary>
     /// Sets the checked state of a CheckBox element identified by its automation ID.
     /// </summary>
@@ -81,7 +80,6 @@ public interface IDriver : IDisposable
     /// </summary>
     bool IsCheckboxChecked(string automationId, TimeSpan? timeout = null);
 
-    // TODO: [FEATURE-CONTROLS] ComboBox automation support
     /// <summary>
     /// Selects an item from a ComboBox by its display text.
     /// </summary>
@@ -97,7 +95,6 @@ public interface IDriver : IDisposable
     /// </summary>
     string? GetSelectedComboBoxItem(string automationId, TimeSpan? timeout = null);
 
-    // TODO: [FEATURE-CONTROLS] RadioButton automation support
     /// <summary>
     /// Selects a RadioButton element identified by its automation ID.
     /// </summary>

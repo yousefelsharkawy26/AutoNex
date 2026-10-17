@@ -82,7 +82,6 @@ public class FlaUIAdapter : IDriver
         return _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
     }
 
-    // TODO: [FEATURE-TIMEOUT-LOOKUP] Polling with timeout for element lookup
     /// <summary>
     /// Finds an element by its automation ID within the specified timeout.
     /// </summary>
@@ -124,7 +123,6 @@ public class FlaUIAdapter : IDriver
         }
     }
 
-    // TODO: [FEATURE-TYPETEXT] Real text typing via TextBox pattern, ValuePattern, or Keyboard
     /// <summary>
     /// Types text into an element identified by its automation ID.
     /// </summary>
@@ -194,7 +192,6 @@ public class FlaUIAdapter : IDriver
         }
     }
 
-    // TODO: [FEATURE-SCREENSHOT] Real UI window screenshot capturing via FlaUI.Core.Capturing
     /// <summary>
     /// Takes a screenshot of the main application window and saves it to disk.
     /// </summary>
@@ -239,7 +236,6 @@ public class FlaUIAdapter : IDriver
         return new Rectangle(rect.Left, rect.Top, rect.Width, rect.Height);
     }
 
-    // TODO: [FEATURE-INPUTIDLE] Real application input idle synchronization
     /// <summary>
     /// Waits for the application to be idle within the specified timeout.
     /// </summary>
@@ -259,7 +255,6 @@ public class FlaUIAdapter : IDriver
         }
     }
 
-    // TODO: [FEATURE-CHECKBOX] CheckBox state setting and reading
     /// <summary>
     /// Sets the checked state of a CheckBox element.
     /// </summary>
@@ -308,7 +303,6 @@ public class FlaUIAdapter : IDriver
         }
     }
 
-    // TODO: [FEATURE-COMBOBOX] ComboBox selection by text/index and querying
     /// <summary>
     /// Selects an item from a ComboBox by its display text.
     /// </summary>
@@ -384,7 +378,6 @@ public class FlaUIAdapter : IDriver
         }
     }
 
-    // TODO: [FEATURE-RADIOBUTTON] RadioButton selection and query
     /// <summary>
     /// Selects a RadioButton element identified by its automation ID.
     /// </summary>

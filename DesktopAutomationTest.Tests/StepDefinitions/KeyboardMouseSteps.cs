@@ -17,7 +17,6 @@ public class KeyboardMouseSteps
 
     // Tracks whether the last input action completed without throwing
     private bool _lastActionSucceeded;
-    private bool _isInitialized;
 
     public KeyboardMouseSteps(IDriver driver)
     {
