@@ -116,3 +116,36 @@ The `FuzzyLocator` calculates normalized Levenshtein similarity against availabl
 | `press_key` | `key` | Sends a key stroke (`"Return"`, `"Tab"`, `"Escape"`) |
 | `send_keys` | `value` | Sends raw string keystrokes globally |
 | `assert_text` | `id`, `contains` or `value` | Verifies element text content |
+
+---
+
+## 🔌 Using with Claude Desktop / Cursor / Antigravity via MCP
+
+The framework includes a ready-to-run **Model Context Protocol (MCP) Server** located in `DesktopAutomationTest.McpServer`.
+
+### MCP Configuration:
+Add this to your MCP configuration file (e.g. `claude_desktop_config.json` or your agent settings):
+
+```json
+{
+  "mcpServers": {
+    "autonex-desktop": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "path/to/DesktopAutomationTest.McpServer/DesktopAutomationTest.McpServer.csproj",
+        "--no-build"
+      ]
+    }
+  }
+}
+```
+
+### Exposed MCP Tools:
+1. **`launch_application`**: Starts the desktop app and connects FlaUI.
+2. **`inspect_screen`**: Returns compact UI elements hierarchy (~90% fewer tokens).
+3. **`execute_plan`**: Runs a multi-step batch in a single tool call with auto-healing and delta tracking.
+4. **`close_application`**: Cleanly shuts down the app and frees memory.
+
+
