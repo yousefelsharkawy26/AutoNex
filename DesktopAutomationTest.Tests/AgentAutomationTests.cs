@@ -355,4 +355,101 @@ public class AgentAutomationTests
         result.Should().Contain("Screenshot saved");
         result.Should().Contain("/tmp/test.png");
     }
+
+    // ── [SESSION-REPLAY] Tests ─────────────────────────────────────────────
+
+    [Fact]
+    public void SessionRecorder_RecordStep_CapturesStepsAndSavesToJson()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.TypeTextByAutomationId("UserField", "Alice", null)).Returns(true);
+        mockDriver.Setup(d => d.ClickByAutomationId("LoginBtn", null)).Returns(true);
+
+        var recorder = new SessionRecorder(mockDriver.Object, appPath: "TestApp.exe", label: "test session");
+        var (s1, m1) = recorder.RecordStep("type", "UserField", "Alice");
+        var (s2, m2) = recorder.RecordStep("click", "LoginBtn");
+
+        s1.Should().BeTrue();
+        s2.Should().BeTrue();
+        recorder.Session.TotalSteps.Should().Be(2);
+        recorder.Session.PassedSteps.Should().Be(2);
+        recorder.Session.Label.Should().Be("test session");
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"rec_test_{Guid.NewGuid():N}.json");
+        try
+        {
+            recorder.Save(tempPath);
+            File.Exists(tempPath).Should().BeTrue();
+            var json = File.ReadAllText(tempPath);
+            json.Should().Contain("UserField");
+            json.Should().Contain("LoginBtn");
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
+    public void SessionReplayer_Replay_ExecutesStepsAndHandlesSelfHealing()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetCompactUiTree("json"))
+                  .Returns("[{\"type\":\"Button\",\"id\":\"SubmitButton\"}]");
+        mockDriver.Setup(d => d.ClickByAutomationId("SubmitButton", null)).Returns(true);
+
+        var session = new SessionRecord
+        {
+            SessionId = "test-replay",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "click", AutomationId = "submit_btn" }
+            }
+        };
+
+        var replayer = new SessionReplayer(mockDriver.Object);
+        var result = replayer.Replay(session);
+
+        result.Success.Should().BeTrue();
+        result.PassedSteps.Should().Be(1);
+        result.StepResults[0].ResolvedId.Should().Be("SubmitButton");
+    }
+
+    [Fact]
+    public void SessionReplayer_ReplayFile_FailsGracefully_WhenFileNotFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        var replayer = new SessionReplayer(mockDriver.Object);
+        var result = replayer.ReplayFile("non_existent_file.json");
+
+        result.Success.Should().BeFalse();
+        result.ToSummary().Should().Contain("not found");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ExecuteAndRecord_And_ReplaySession_WorkTogether()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.ClickByAutomationId("OkBtn", null)).Returns(true);
+        mockDriver.Setup(d => d.GetCompactUiTree("json"))
+                  .Returns("[{\"type\":\"Button\",\"id\":\"OkBtn\"}]");
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var tempPath = Path.Combine(Path.GetTempPath(), $"eng_rec_{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var planJson = "[{\"action\":\"click\",\"id\":\"OkBtn\"}]";
+            var recordResult = engine.ExecuteAndRecord(planJson, tempPath, "engine-flow");
+            recordResult.Should().Contain("Session saved");
+
+            var replayResult = engine.ReplaySession(tempPath);
+            replayResult.Should().Contain("PASSED");
+            replayResult.Should().Contain("1/1 steps");
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
 }

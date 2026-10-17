@@ -42,7 +42,7 @@ public class Program
                     {
                         protocolVersion = "2024-11-05",
                         capabilities = new { tools = new { } },
-                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.1.0" }
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.2.0" }
                     });
                 }
                 else if (method == "notifications/initialized")
@@ -188,6 +188,40 @@ public class Program
             },
             new
             {
+                name = "record_session",
+                description = "Executes a multi-step plan AND records every action + result to a JSON session file for ZERO-TOKEN future replay. Use this the first time you automate a flow.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        plan_json = new
+                        {
+                            type = "string",
+                            description = "JSON array of actions (same format as execute_plan)."
+                        },
+                        session_path = new { type = "string", description = "Optional output path for the session JSON file. Auto-generated in temp folder if omitted." },
+                        label = new { type = "string", description = "Optional human-readable label for this session (e.g. 'login flow')." }
+                    },
+                    required = new[] { "plan_json" }
+                }
+            },
+            new
+            {
+                name = "replay_session",
+                description = "Replays a previously recorded session JSON file with ZERO token cost — no LLM needed. Uses self-healing locators to tolerate minor UI changes.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        session_path = new { type = "string", description = "Path to the session JSON file produced by record_session." }
+                    },
+                    required = new[] { "session_path" }
+                }
+            },
+                        new
+            {
                 name = "close_application",
                 description = "Closes the running application and frees automation resources.",
                 inputSchema = new { type = "object", properties = new { } }
@@ -275,6 +309,36 @@ public class Program
 
                 var outPath = arguments.TryGetProperty("output_path", out var op) ? op.GetString() : null;
                 return _engine.TakeScreenshot(outPath);
+
+            case "record_session":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var recPlan = arguments.GetProperty("plan_json").GetString();
+                if (string.IsNullOrEmpty(recPlan))
+                {
+                    return "Error: plan_json is required.";
+                }
+
+                var recPath  = arguments.TryGetProperty("session_path", out var rp) ? rp.GetString() : null;
+                var recLabel = arguments.TryGetProperty("label", out var rl) ? rl.GetString() : null;
+                return _engine.ExecuteAndRecord(recPlan, recPath, recLabel);
+
+            case "replay_session":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var replayPath = arguments.TryGetProperty("session_path", out var sp) ? sp.GetString() : null;
+                if (string.IsNullOrEmpty(replayPath))
+                {
+                    return "Error: session_path is required.";
+                }
+
+                return _engine.ReplaySession(replayPath);
 
             case "close_application":
                 _driver?.Dispose();

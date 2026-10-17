@@ -15,6 +15,8 @@ namespace DesktopAutomationTest.Cli;
 ///   autonex wait     --app &lt;path&gt; --id &lt;automationId&gt; [--timeout &lt;seconds&gt;]
 ///   autonex text     --app &lt;path&gt; --id &lt;automationId&gt;
 ///   autonex shot     --app &lt;path&gt; [--out &lt;file.png&gt;]
+///   autonex record  --app <path> --plan <file.json> [--out <session.json>] [--label <text>]
+///   autonex replay  --app <path> --session <file.json>
 ///   autonex help
 /// </summary>
 internal class Program
@@ -38,6 +40,8 @@ internal class Program
             "wait"    => RunWait(parsed),
             "text"    => RunText(parsed),
             "shot"    => RunShot(parsed),
+            "record"  => RunRecord(parsed),
+            "replay"  => RunReplay(parsed),
             _         => UnknownCommand(command)
         };
     }
@@ -130,6 +134,51 @@ internal class Program
         return result.StartsWith("Error:") ? 1 : 0;
     }
 
+
+    static int RunRecord(ParsedArgs p)
+    {
+        RequireArg(p, "app");
+        RequireArg(p, "plan");
+
+        var planFile = p.Get("plan")!;
+        if (!File.Exists(planFile))
+        {
+            Console.Error.WriteLine($"Error: plan file not found: {planFile}");
+            return 1;
+        }
+
+        var planJson    = File.ReadAllText(planFile);
+        var sessionPath = p.Get("out");
+        var label       = p.Get("label");
+
+        using var driver = CreateAndLaunch(p);
+        var engine = new AgentAutomationEngine(driver);
+
+        var result = engine.ExecuteAndRecord(planJson, sessionPath, label);
+        Console.WriteLine(result);
+        return result.Contains("FAILED") ? 1 : 0;
+    }
+
+    static int RunReplay(ParsedArgs p)
+    {
+        RequireArg(p, "app");
+        RequireArg(p, "session");
+
+        var sessionFile = p.Get("session")!;
+        if (!File.Exists(sessionFile))
+        {
+            Console.Error.WriteLine($"Error: session file not found: {sessionFile}");
+            return 1;
+        }
+
+        using var driver = CreateAndLaunch(p);
+        var engine = new AgentAutomationEngine(driver);
+
+        var result = engine.ReplaySession(sessionFile);
+        Console.WriteLine(result);
+        return result.Contains("FAILED") || result.StartsWith("error") ? 1 : 0;
+    }
+
     static int UnknownCommand(string cmd)
     {
         Console.Error.WriteLine($"Error: Unknown command '{cmd}'. Run 'autonex help' for usage.");
@@ -167,6 +216,8 @@ internal class Program
 
             COMMANDS:
               inspect   Dump interactive UI elements (compact, token-minimal)
+              record    Execute a plan AND save it as a replayable session JSON
+              replay    Replay a recorded session — ZERO LLM tokens
               run       Execute a multi-step automation plan from a JSON file
               launch    Launch an application and keep it open
               wait      Wait until an element appears (with timeout)
@@ -181,7 +232,9 @@ internal class Program
               --plan <file>      Path to the JSON plan file              [run]
               --id <id>          Automation ID of the target element     [wait, text]
               --timeout <secs>   Wait timeout in seconds (default: 10)  [wait]
-              --out <file>       Output path for screenshot PNG          [shot]
+              --out <file>       Output path for screenshot PNG / session JSON [shot, record]
+              --session <file>   Path to session JSON file                  [replay]
+              --label <text>     Label for the recorded session             [record]
 
             EXAMPLES:
               autonex inspect --app "C:\MyApp\MyApp.exe"
