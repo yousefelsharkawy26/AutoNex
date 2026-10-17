@@ -259,5 +259,23 @@ public class AgentAutomationTests
 
         summary.Should().Contain("SUCCESS: 1/1");
     }
+
+    [Fact]
+    public void AgentBatchRunner_Execute_IncludesSmartDiagnosticHint_OnFailure()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.ClickByAutomationId("NonExistentButton", null)).Returns(false);
+        mockDriver.Setup(d => d.GetCompactUiTree("json"))
+                  .Returns("""[{"type":"Button","id":"SubmitButton"},{"type":"Button","id":"ClearButton"}]""");
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var result = runner.Execute(new List<AgentAction>
+        {
+            new() { Action = "click", AutomationId = "NonExistentButton" }
+        });
+
+        result.Success.Should().BeFalse();
+        result.ToCompactSummary().Should().Contain("Available IDs: SubmitButton, ClearButton");
+    }
 }
 

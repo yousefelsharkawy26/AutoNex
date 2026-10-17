@@ -64,6 +64,13 @@ public record ActionStepResult
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// Compact diagnostic context (e.g. available elements or closest matches) to guide the agent without full tree dumps.
+    /// </summary>
+    [JsonPropertyName("diagnostic")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DiagnosticDetails { get; init; }
 }
 
 /// <summary>
@@ -110,7 +117,8 @@ public record AgentBatchResult
 
         var failedStep = Steps.Find(s => !s.Success);
         var detail = failedStep != null 
-            ? $"Step {failedStep.StepIndex + 1} ({failedStep.Action} #{failedStep.TargetId}): {failedStep.ErrorMessage}" 
+            ? $"Step {failedStep.StepIndex + 1} ({failedStep.Action} #{failedStep.TargetId}): {failedStep.ErrorMessage}" + 
+              (!string.IsNullOrEmpty(failedStep.DiagnosticDetails) ? $" [Hint: {failedStep.DiagnosticDetails}]" : "")
             : Error;
 
         return $"FAILED at {detail} (Completed {ExecutedStepsCount}/{TotalStepsCount}){deltaPart}";

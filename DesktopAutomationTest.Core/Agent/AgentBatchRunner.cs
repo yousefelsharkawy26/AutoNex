@@ -69,7 +69,7 @@ public class AgentBatchRunner
         for (int i = 0; i < actionList.Count; i++)
         {
             var action = actionList[i];
-            var (success, error) = ExecuteSingleAction(action);
+            var (success, error, diagnostic) = ExecuteSingleAction(action);
 
             stepResults.Add(new ActionStepResult
             {
@@ -77,7 +77,8 @@ public class AgentBatchRunner
                 Action = action.Action,
                 TargetId = action.AutomationId,
                 Success = success,
-                ErrorMessage = error
+                ErrorMessage = error,
+                DiagnosticDetails = diagnostic
             });
 
             if (!success)
@@ -130,7 +131,7 @@ public class AgentBatchRunner
         return null;
     }
 
-    private (bool Success, string? Error) ExecuteSingleAction(AgentAction action)
+    private (bool Success, string? Error, string? Diagnostic) ExecuteSingleAction(AgentAction action)
     {
         var type = action.Action.Trim().ToLowerInvariant();
         var targetId = ResolveTargetId(action.AutomationId);
@@ -139,89 +140,89 @@ public class AgentBatchRunner
         {
             case "click":
                 if (string.IsNullOrEmpty(targetId))
-                    return (false, "Missing 'id' for click action.");
+                    return (false, "Missing 'id' for click action.", null);
                 return _driver.ClickByAutomationId(targetId) 
-                    ? (true, null) 
-                    : (false, $"Failed to click element '{targetId}'. Element not found or disabled.");
+                    ? (true, null, null) 
+                    : (false, $"Failed to click element '{targetId}'. Element not found or disabled.", GetCandidateDiagnostic(targetId));
 
             case "type":
                 if (string.IsNullOrEmpty(targetId))
-                    return (false, "Missing 'id' for type action.");
+                    return (false, "Missing 'id' for type action.", null);
                 return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
-                    ? (true, null)
-                    : (false, $"Failed to type text into '{targetId}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to type text into '{targetId}'.", GetCandidateDiagnostic(targetId));
 
             case "check":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for check action.");
+                    return (false, "Missing 'id' for check action.", null);
                 return _driver.SetCheckboxByAutomationId(action.AutomationId, true)
-                    ? (true, null)
-                    : (false, $"Failed to check element '{action.AutomationId}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to check element '{action.AutomationId}'.", GetCandidateDiagnostic(action.AutomationId));
 
             case "uncheck":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for uncheck action.");
+                    return (false, "Missing 'id' for uncheck action.", null);
                 return _driver.SetCheckboxByAutomationId(action.AutomationId, false)
-                    ? (true, null)
-                    : (false, $"Failed to uncheck element '{action.AutomationId}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to uncheck element '{action.AutomationId}'.", GetCandidateDiagnostic(action.AutomationId));
 
             case "select":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for select action.");
+                    return (false, "Missing 'id' for select action.", null);
                 if (string.IsNullOrEmpty(action.Value))
-                    return (false, "Missing 'value' for select action.");
+                    return (false, "Missing 'value' for select action.", null);
 
                 // If ComboBox
                 if (_driver.SelectComboBoxItemByText(action.AutomationId, action.Value))
-                    return (true, null);
+                    return (true, null, null);
 
                 // If RadioButton
                 if (_driver.SelectRadioButtonByAutomationId(action.AutomationId))
-                    return (true, null);
+                    return (true, null, null);
 
-                return (false, $"Failed to select '{action.Value}' in element '{action.AutomationId}'.");
+                return (false, $"Failed to select '{action.Value}' in element '{action.AutomationId}'.", GetCandidateDiagnostic(action.AutomationId));
 
             case "double_click":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for double_click action.");
+                    return (false, "Missing 'id' for double_click action.", null);
                 return _driver.DoubleClickByAutomationId(action.AutomationId)
-                    ? (true, null)
-                    : (false, $"Failed to double-click '{action.AutomationId}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to double-click '{action.AutomationId}'.", GetCandidateDiagnostic(action.AutomationId));
 
             case "right_click":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for right_click action.");
+                    return (false, "Missing 'id' for right_click action.", null);
                 return _driver.RightClickByAutomationId(action.AutomationId)
-                    ? (true, null)
-                    : (false, $"Failed to right-click '{action.AutomationId}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to right-click '{action.AutomationId}'.", GetCandidateDiagnostic(action.AutomationId));
 
             case "hover":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for hover action.");
+                    return (false, "Missing 'id' for hover action.", null);
                 return _driver.HoverOverByAutomationId(action.AutomationId)
-                    ? (true, null)
-                    : (false, $"Failed to hover over '{action.AutomationId}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to hover over '{action.AutomationId}'.", GetCandidateDiagnostic(action.AutomationId));
 
             case "press_key":
                 if (string.IsNullOrEmpty(action.Key))
-                    return (false, "Missing 'key' for press_key action.");
+                    return (false, "Missing 'key' for press_key action.", null);
                 return _driver.PressKey(action.Key)
-                    ? (true, null)
-                    : (false, $"Failed to press key '{action.Key}'.");
+                    ? (true, null, null)
+                    : (false, $"Failed to press key '{action.Key}'.", null);
 
             case "send_keys":
                 if (action.Value == null)
-                    return (false, "Missing 'value' for send_keys action.");
+                    return (false, "Missing 'value' for send_keys action.", null);
                 return _driver.SendKeys(action.Value)
-                    ? (true, null)
-                    : (false, "Failed to send keys.");
+                    ? (true, null, null)
+                    : (false, "Failed to send keys.", null);
 
             case "assert_text":
                 if (string.IsNullOrEmpty(action.AutomationId))
-                    return (false, "Missing 'id' for assert_text action.");
+                    return (false, "Missing 'id' for assert_text action.", null);
 
                 if (!_driver.TryGetTextByAutomationId(action.AutomationId, out var text))
-                    return (false, $"Element '{action.AutomationId}' not found for text assertion.");
+                    return (false, $"Element '{action.AutomationId}' not found for text assertion.", GetCandidateDiagnostic(action.AutomationId));
 
                 text ??= string.Empty;
 
@@ -229,21 +230,54 @@ public class AgentBatchRunner
                 {
                     if (!text.Contains(action.Contains, StringComparison.OrdinalIgnoreCase))
                     {
-                        return (false, $"Assertion failed for '{action.AutomationId}': Expected to contain '{action.Contains}', but was '{text}'.");
+                        return (false, $"Assertion failed for '{action.AutomationId}': Expected to contain '{action.Contains}', but was '{text}'.", null);
                     }
                 }
                 else if (action.Value != null)
                 {
                     if (!string.Equals(text, action.Value, StringComparison.OrdinalIgnoreCase))
                     {
-                        return (false, $"Assertion failed for '{action.AutomationId}': Expected '{action.Value}', but was '{text}'.");
+                        return (false, $"Assertion failed for '{action.AutomationId}': Expected '{action.Value}', but was '{text}'.", null);
                     }
                 }
-                return (true, null);
+                return (true, null, null);
 
             default:
-                return (false, $"Unknown action type '{action.Action}'.");
+                return (false, $"Unknown action type '{action.Action}'.", null);
         }
+    }
+
+    private string? GetCandidateDiagnostic(string? targetId)
+    {
+        if (string.IsNullOrEmpty(targetId)) return null;
+
+        try
+        {
+            var rawJson = _driver.GetCompactUiTree("json");
+            if (!string.IsNullOrEmpty(rawJson) && rawJson.StartsWith("["))
+            {
+                var candidates = JsonSerializer.Deserialize<List<CompactUiElement>>(rawJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (candidates != null && candidates.Count > 0)
+                {
+                    var availableIds = candidates
+                        .Where(c => !string.IsNullOrEmpty(c.AutomationId))
+                        .Select(c => c.AutomationId)
+                        .Take(5);
+
+                    return $"Available IDs: {string.Join(", ", availableIds)}";
+                }
+            }
+        }
+        catch
+        {
+            // Ignore
+        }
+
+        return null;
     }
 
     private string? ResolveTargetId(string? originalId)
