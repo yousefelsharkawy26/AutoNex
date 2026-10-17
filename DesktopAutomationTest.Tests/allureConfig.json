@@ -1,0 +1,10 @@
+{
+  "allure": {
+    "directory": "allure-results",
+    "xunitRunnerReporter": "none",
+    "links": [
+      "https://example.org/issue/{issue}",
+      "https://example.org/tms/{tms}"
+    ]
+  }
+}

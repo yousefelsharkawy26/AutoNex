@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Allure.Net.Commons" Version="2.15.0" />
+    <PackageReference Include="Allure.Xunit" Version="2.15.0" />
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <PackageReference Include="FsCheck" Version="3.4.0" />
+    <PackageReference Include="FsCheck.Xunit" Version="3.4.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="ReportGenerator" Version="5.5.11" />
+    <!--
+      Reqnroll.Tools.MsBuild.Generation generates the code-behind for .feature files and
+      Reqnroll.xUnit bridges the generated scenarios into xUnit. Without both, the feature
+      files compile to zero tests and BDD silently does nothing.
+    -->
+    <PackageReference Include="Reqnroll" Version="3.3.4" />
+    <PackageReference Include="Reqnroll.Microsoft.Extensions.DependencyInjection" Version="3.3.4" />
+    <PackageReference Include="Reqnroll.Tools.MsBuild.Generation" Version="3.3.4" />
+    <PackageReference Include="Reqnroll.xUnit" Version="3.3.4" />
+    <PackageReference Include="Verify.Xunit" Version="31.12.5" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <!--
+      Must stay on the 2.8.x line: this project uses xunit 2.9.3 (v2), while
+      xunit.runner.visualstudio 3.x is the v3 runner. Allure.Xunit 2.x patches the
+      xunit v2 runner via Harmony, so with 3.x it silently never attaches and every
+      AllureApi call becomes a no-op (no allure-results are produced).
+    -->
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DesktopAutomationTest.Core\DesktopAutomationTest.Core.csproj" />
+    <ProjectReference Include="..\DesktopAutomationTest.SampleApp\DesktopAutomationTest.SampleApp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Allure reads its settings from this file at test-run time. -->
+    <None Update="allureConfig.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Approved Verify snapshots must be visible to the test host. -->
+    <None Update="Snapshots\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Approved visual-regression baselines. -->
+    <None Update="Baselines\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Reqnroll discovers .feature files through None items; without this no scenario is generated. -->
+    <None Update="Features\**\*.feature" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

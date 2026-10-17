@@ -1,0 +1,24 @@
+# Build output
+bin/
+obj/
+
+# Test and coverage artifacts
+TestResults/
+coverage*.xml
+coverletreports/
+allure-results/
+allure-report/
+StrykerOutput/
+.mutmut/
+
+# Verify received snapshots (unapproved baselines should never be committed)
+*.received.*
+
+# Reqnroll generated code-behind (regenerated from .feature files on build)
+*.feature.cs
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo

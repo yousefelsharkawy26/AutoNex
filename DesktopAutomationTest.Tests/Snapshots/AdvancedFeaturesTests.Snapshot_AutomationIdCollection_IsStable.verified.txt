@@ -1,0 +1,6 @@
+﻿[
+  SubmitButton,
+  CancelButton,
+  MainWindow,
+  StatusBar
+]

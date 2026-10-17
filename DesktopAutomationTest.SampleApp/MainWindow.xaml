@@ -1,0 +1,60 @@
+﻿<Window x:Class="DesktopAutomationTest.SampleApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DesktopAutomationTest.SampleApp"
+        mc:Ignorable="d"
+        Title="Sample Application for Testing" Height="450" Width="800">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="200"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" 
+                   FontSize="24" FontWeight="Bold" Margin="0,0,0,20"
+                   HorizontalAlignment="Center">
+            Desktop Automation Test Sample Application
+        </TextBlock>
+
+        <!-- First Name -->
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,5,0,5" 
+                   VerticalAlignment="Center">First Name:</TextBlock>
+        <TextBox x:Name="FirstNameTextBox" Grid.Row="1" Grid.Column="1" 
+                 Margin="0,5,0,5" Padding="5" AutomationProperties.AutomationId="FirstNameTextBox"/>
+
+        <!-- Last Name -->
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,5,0,5" 
+                   VerticalAlignment="Center">Last Name:</TextBlock>
+        <TextBox x:Name="LastNameTextBox" Grid.Row="2" Grid.Column="1" 
+                 Margin="0,5,0,5" Padding="5" AutomationProperties.AutomationId="LastNameTextBox"/>
+
+        <!-- Age -->
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,5,0,5" 
+                   VerticalAlignment="Center">Age:</TextBlock>
+        <TextBox x:Name="AgeTextBox" Grid.Row="3" Grid.Column="1" 
+                 Margin="0,5,0,5" Padding="5" AutomationProperties.AutomationId="AgeTextBox"/>
+
+        <!-- Submit Button -->
+        <Button x:Name="SubmitButton" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                Margin="0,20,0,5" Padding="15,5" 
+                Content="Submit"
+                AutomationProperties.AutomationId="SubmitButton"
+                Click="SubmitButton_Click"/>
+
+        <!-- Results Display -->
+        <TextBlock x:Name="ResultTextBlock" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                   Margin="0,10,0,0" TextWrapping="Wrap"
+                   AutomationProperties.AutomationId="ResultTextBlock"/>
+    </Grid>
+</Window>

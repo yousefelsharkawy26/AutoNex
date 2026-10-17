@@ -1,0 +1,27 @@
+{
+  "stryker-config": {
+    "project": "DesktopAutomationTest.Core",
+    "solution": "DesktopAutomationTest.slnx",
+    "reporters": [
+      "html",
+      "cleartext",
+      "progress"
+    ],
+    "coverage-analysis": "off",
+    "mutation-level": "Standard",
+    "mutate": [
+      "**/DesktopAutomationTest.Core/**/*.cs",
+      "!**/obj/**",
+      "!**/bin/**",
+      "!**/Class1.cs"
+    ],
+    "disable-bail": false,
+    "break-on-initial-test-failure": false,
+    "additional-timeout": 30000,
+    "concurrency": 4,
+    "thresholds": {
+      "high": 80,
+      "low": 60
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="DesktopAutomationTest.Core/DesktopAutomationTest.Core.csproj"/>
+  <Project Path="DesktopAutomationTest.Tests/DesktopAutomationTest.Tests.csproj"/>
+  <Project Path="DesktopAutomationTest.SampleApp/DesktopAutomationTest.SampleApp.csproj"/>
+</Solution>

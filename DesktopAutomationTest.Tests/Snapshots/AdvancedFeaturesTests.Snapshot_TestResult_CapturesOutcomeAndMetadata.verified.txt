@@ -1,0 +1,10 @@
+﻿{
+  TestName: Sample Test,
+  Passed: true,
+  ExecutionTime: 00:00:05.5000000,
+  Metadata: {
+    Browser: Chrome,
+    Environment: Test
+  },
+  Timestamp: DateTime_1
+}
