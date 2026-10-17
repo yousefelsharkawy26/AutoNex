@@ -172,6 +172,8 @@ in a single `stryker-config` root object.
 
 ### Core Library
 - **Driver Abstraction**: `IDriver` with FlaUI implementation
+- **Desktop Controls**: CheckBox, ComboBox (text/index), RadioButton automation
+- **Advanced Keyboard & Mouse**: DoubleClick, RightClick, Hover, PressKey, SendKeys, Drag & Drop
 - **Base Test Fixture**: shared setup/teardown
 - **Wait Helpers**: condition-based waiting with timeout and polling
 - **Screenshot Helpers**: image comparison and threshold validation
