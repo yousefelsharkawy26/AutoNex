@@ -76,3 +76,4 @@ public class AgentStateTracker
         _previousSnapshot.Clear();
     }
 }
+

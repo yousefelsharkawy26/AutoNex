@@ -233,5 +233,31 @@ public class AgentAutomationTests
 
         delta.Should().Be("No UI state change.");
     }
+
+    [Fact]
+    public void AgentAutomationEngine_InspectScreen_ReturnsCompactFormat()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetCompactUiTree("text"))
+                  .Returns("[Button #SubmitButton \"Submit\"]");
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var screen = engine.InspectScreen();
+
+        screen.Should().Be("[Button #SubmitButton \"Submit\"]");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ExecutePlan_ExecutesAndReturnsSummary()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.ClickByAutomationId("SubmitButton", null)).Returns(true);
+        mockDriver.Setup(d => d.TryFindByAutomationId("SubmitButton", null)).Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var summary = engine.ExecutePlan("""[{"action":"click","id":"SubmitButton"}]""");
+
+        summary.Should().Contain("SUCCESS: 1/1");
+    }
 }
 
