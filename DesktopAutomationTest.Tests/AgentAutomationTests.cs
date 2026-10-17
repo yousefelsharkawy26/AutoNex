@@ -277,5 +277,82 @@ public class AgentAutomationTests
         result.Success.Should().BeFalse();
         result.ToCompactSummary().Should().Contain("Available IDs: SubmitButton, ClearButton");
     }
-}
 
+    // ── [MCP-TOOLS-V1.1] New engine helper tests ─────────────────────────────
+
+    [Fact]
+    public void AgentAutomationEngine_WaitForElement_ReturnsFound_WhenElementExists()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver
+            .Setup(d => d.TryFindByAutomationId("OkButton", It.IsAny<TimeSpan?>()))
+            .Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.WaitForElement("OkButton", 5);
+
+        result.Should().Contain("found");
+        result.Should().NotContain("Timeout");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_WaitForElement_ReturnsTimeout_WhenElementMissing()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver
+            .Setup(d => d.TryFindByAutomationId("GhostButton", It.IsAny<TimeSpan?>()))
+            .Returns(false);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.WaitForElement("GhostButton", 3);
+
+        result.Should().StartWith("Timeout:");
+        result.Should().Contain("GhostButton");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_GetElementText_ReturnsText_WhenElementFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        string? txt = "Hello World";
+        mockDriver
+            .Setup(d => d.TryGetTextByAutomationId("LabelElement", out txt, null))
+            .Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.GetElementText("LabelElement");
+
+        result.Should().Be("Hello World");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_GetElementText_ReturnsError_WhenElementMissing()
+    {
+        var mockDriver = new Mock<IDriver>();
+        string? txt = null;
+        mockDriver
+            .Setup(d => d.TryGetTextByAutomationId("Missing", out txt, null))
+            .Returns(false);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.GetElementText("Missing");
+
+        result.Should().Contain("Error");
+        result.Should().Contain("Missing");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_TakeScreenshot_ReturnsPath_WhenSuccessful()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver
+            .Setup(d => d.TakeScreenshot(It.IsAny<string>()))
+            .Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.TakeScreenshot("/tmp/test.png");
+
+        result.Should().Contain("Screenshot saved");
+        result.Should().Contain("/tmp/test.png");
+    }
+}

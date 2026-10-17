@@ -42,7 +42,7 @@ public class Program
                     {
                         protocolVersion = "2024-11-05",
                         capabilities = new { tools = new { } },
-                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.0.0" }
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.1.0" }
                     });
                 }
                 else if (method == "notifications/initialized")
@@ -146,6 +146,48 @@ public class Program
             },
             new
             {
+                name = "wait_for_element",
+                description = "Polls the UI until an element with the given automation ID appears (visible/exists). Useful after navigation, dialogs, or async operations. Returns immediately when found.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        id = new { type = "string", description = "Automation ID of the element to wait for." },
+                        timeout_seconds = new { type = "integer", description = "Maximum seconds to wait. Default: 10." }
+                    },
+                    required = new[] { "id" }
+                }
+            },
+            new
+            {
+                name = "get_element_text",
+                description = "Returns the current text/value of a specific UI element by its automation ID. Lightweight read — does not re-scan the whole screen.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        id = new { type = "string", description = "Automation ID of the element whose text to retrieve." }
+                    },
+                    required = new[] { "id" }
+                }
+            },
+            new
+            {
+                name = "take_screenshot",
+                description = "Captures the current screen as a PNG file and returns the file path. Use sparingly — prefer inspect_screen to save tokens.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        output_path = new { type = "string", description = "Optional file path to save the screenshot (e.g. C:\\screenshots\\step1.png). If omitted, a timestamped file is created in the system temp folder." }
+                    }
+                }
+            },
+            new
+            {
                 name = "close_application",
                 description = "Closes the running application and frees automation resources.",
                 inputSchema = new { type = "object", properties = new { } }
@@ -195,6 +237,44 @@ public class Program
                 }
 
                 return _engine.ExecutePlan(plan);
+
+            case "wait_for_element":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var waitId = arguments.GetProperty("id").GetString();
+                if (string.IsNullOrEmpty(waitId))
+                {
+                    return "Error: id is required.";
+                }
+
+                var timeoutSec = arguments.TryGetProperty("timeout_seconds", out var ts) ? ts.GetInt32() : 10;
+                return _engine.WaitForElement(waitId, timeoutSec);
+
+            case "get_element_text":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var textId = arguments.GetProperty("id").GetString();
+                if (string.IsNullOrEmpty(textId))
+                {
+                    return "Error: id is required.";
+                }
+
+                return _engine.GetElementText(textId);
+
+            case "take_screenshot":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var outPath = arguments.TryGetProperty("output_path", out var op) ? op.GetString() : null;
+                return _engine.TakeScreenshot(outPath);
 
             case "close_application":
                 _driver?.Dispose();

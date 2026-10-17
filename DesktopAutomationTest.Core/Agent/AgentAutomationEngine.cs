@@ -53,5 +53,47 @@ public class AgentAutomationEngine
         }
         return false;
     }
-}
 
+    /// <summary>
+    /// Polls until an element with the given automationId appears or the timeout expires.
+    /// Returns a human-readable result string suitable for MCP tool responses.
+    /// </summary>
+    /// <param name="automationId">Automation ID of the element to wait for.</param>
+    /// <param name="timeoutSeconds">Max seconds to wait (default 10).</param>
+    public string WaitForElement(string automationId, int timeoutSeconds = 10)
+    {
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        var found = _driver.TryFindByAutomationId(automationId, timeout);
+        return found
+            ? $"Element '{automationId}' found within {timeoutSeconds}s."
+            : $"Timeout: element '{automationId}' not found after {timeoutSeconds}s.";
+    }
+
+    /// <summary>
+    /// Returns the text of the element with the given automationId.
+    /// Returns a human-readable result string suitable for MCP tool responses.
+    /// </summary>
+    public string GetElementText(string automationId)
+    {
+        if (_driver.TryGetTextByAutomationId(automationId, out var text))
+            return text ?? string.Empty;
+        return $"Error: element '{automationId}' not found.";
+    }
+
+    /// <summary>
+    /// Takes a screenshot of the current screen and saves it to the specified path.
+    /// Returns the saved file path on success, or an error message.
+    /// </summary>
+    /// <param name="outputPath">File path where the PNG will be saved. Defaults to a timestamped file in the temp folder.</param>
+    public string TakeScreenshot(string? outputPath = null)
+    {
+        outputPath ??= System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"autonex_{DateTime.UtcNow:yyyyMMdd_HHmmss}.png");
+
+        var ok = _driver.TakeScreenshot(outputPath);
+        return ok
+            ? $"Screenshot saved: {outputPath}"
+            : $"Error: screenshot could not be taken.";
+    }
+}
