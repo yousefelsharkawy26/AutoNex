@@ -42,7 +42,7 @@ public class Program
                     {
                         protocolVersion = "2024-11-05",
                         capabilities = new { tools = new { } },
-                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.4.0" }
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.5.0" }
                     });
                 }
                 else if (method == "notifications/initialized")
@@ -108,7 +108,8 @@ public class Program
                     properties = new
                     {
                         path = new { type = "string", description = "Path to the application executable." },
-                        arguments = new { type = "string", description = "Optional command line arguments." }
+                        arguments = new { type = "string", description = "Optional command line arguments." },
+                        driver = new { type = "string", @enum = new[] { "flaui", "avalonia" }, description = "Driver type: 'flaui' (default for Windows UIA3) or 'avalonia' (cross-platform Linux/macOS/Windows)." }
                     },
                     required = new[] { "path" }
                 }
@@ -278,8 +279,10 @@ public class Program
                     return "Error: Application path is required.";
                 }
 
+                var driverType = arguments.TryGetProperty("driver", out var dt) ? dt.GetString() ?? "flaui" : "flaui";
+
                 _driver?.Dispose();
-                _driver = DriverFactory.CreateFlauiDriver();
+                _driver = DriverFactory.CreateDriver(driverType);
                 _driver.Initialize(path, args);
                 _engine = new AgentAutomationEngine(_driver);
 

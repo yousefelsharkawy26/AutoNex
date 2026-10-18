@@ -178,3 +178,4 @@ public class AvaloniaDriverTests
         result.ToCompactSummary().Should().Contain("SUCCESS: 5/5 steps");
     }
 }
+

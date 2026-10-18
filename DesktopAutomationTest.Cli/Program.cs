@@ -245,8 +245,9 @@ internal class Program
     {
         var appPath = p.Get("app")!;
         var appArgs = p.Get("args");
+        var driverType = p.Get("driver", "flaui") ?? "flaui";
 
-        var driver = DriverFactory.CreateFlauiDriver();
+        var driver = DriverFactory.CreateDriver(driverType);
         driver.Initialize(appPath, appArgs);
         return driver;
     }
@@ -282,6 +283,7 @@ internal class Program
             OPTIONS:
               --app <path>       Path to the application .exe  (required for most commands)
               --args <args>      Command-line arguments for the application
+              --driver <type>    Driver engine: flaui (default, Windows) or avalonia (cross-platform)
               --format <fmt>     Output format: text (default) or json  [inspect]
               --plan <file>      Path to the JSON plan file              [run]
               --id <id>          Automation ID of the target element     [wait, text]
