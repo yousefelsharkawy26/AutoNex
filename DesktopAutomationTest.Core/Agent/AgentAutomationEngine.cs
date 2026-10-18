@@ -184,6 +184,8 @@ public class AgentAutomationEngine
 
     // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
 
+    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
+
     /// <summary>
     /// Attaches the driver to an already-running process (by pid or exe name) instead of launching a new instance.
     /// </summary>
