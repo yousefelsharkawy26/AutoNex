@@ -506,7 +506,7 @@ public class Program
                 case "launch_application":
                     var path = arguments.GetProperty("path").GetString();
                     var args = arguments.TryGetProperty("arguments", out var a) ? a.GetString() : null;
-                    var driverType = arguments.TryGetProperty("driver", out var dt) ? dt.GetString() ?? "flaui" : "flaui";
+                    var driverType = arguments.TryGetProperty("driver", out var dt) && !string.IsNullOrEmpty(dt.GetString()) ? dt.GetString()! : DriverFactory.DefaultDriverType;
 
                     if (string.IsNullOrEmpty(path))
                     {
@@ -538,7 +538,7 @@ public class Program
                     }
 
                     _driver?.Dispose();
-                    _driver = DriverFactory.CreateFlauiDriver();
+                    _driver = DriverFactory.CreateDriver(DriverFactory.DefaultDriverType);
                     try
                     {
                         var attachEngine = new AgentAutomationEngine(_driver);

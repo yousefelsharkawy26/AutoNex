@@ -27,6 +27,7 @@ public class AvaloniaDriver : IDriver
 {
     private Window? _activeWindow;
     private readonly List<Window> _openWindows = new();
+    private System.Diagnostics.Process? _process;
     private bool _disposed;
 
     /// <summary>
@@ -52,8 +53,22 @@ public class AvaloniaDriver : IDriver
 
     public void Initialize(string appPath, string? arguments = null)
     {
-        // When launched with an external path, if a headless app isn't attached yet,
-        // it serves as a placeholder. For in-process/headless testing, use Attach(window).
+        if (!string.IsNullOrWhiteSpace(appPath))
+        {
+            var resolvedPath = Path.GetFullPath(appPath);
+            if (!File.Exists(resolvedPath))
+            {
+                throw new FileNotFoundException($"Application binary not found at '{appPath}'.", resolvedPath);
+            }
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = resolvedPath,
+                Arguments = arguments ?? string.Empty,
+                UseShellExecute = false
+            };
+            _process = System.Diagnostics.Process.Start(psi);
+        }
     }
 
     // ── IDriver Implementation ─────────────────────────────────────────────────
@@ -261,6 +276,12 @@ public class AvaloniaDriver : IDriver
     {
         if (_activeWindow == null)
         {
+            if (_process != null)
+            {
+                return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase)
+                    ? "[]"
+                    : $"[Application Process running (PID: {_process.Id}) — Avalonia in-process inspection requires Attach(window) or Headless test runner]";
+            }
             return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ? "[]" : "[No Active Avalonia Window]";
         }
 
@@ -465,19 +486,33 @@ public class AvaloniaDriver : IDriver
         return null;
     }
 
-    /// <summary>Returns true while at least one tracked window is open and not disposed.</summary>
+    /// <summary>Returns true while at least one tracked window is open and not disposed, or the child process is alive.</summary>
     public bool IsApplicationAlive()
     {
-        return !_disposed && _openWindows.Count > 0;
+        if (_disposed) return false;
+        if (_process != null)
+        {
+            try { return !_process.HasExited; }
+            catch { return false; }
+        }
+        return _openWindows.Count > 0;
     }
 
-    /// <summary>AvaloniaDriver is in-process; there is no separate OS process to return.</summary>
-    public System.Diagnostics.Process? GetOwnProcess() => null;
+    /// <summary>Returns the OS process of the launched application, or null if in-process.</summary>
+    public System.Diagnostics.Process? GetOwnProcess() => _process;
 
     public void Dispose()
     {
         if (!_disposed)
         {
+            if (_process != null && !_process.HasExited)
+            {
+                try { _process.Kill(entireProcessTree: true); }
+                catch { }
+                _process.Dispose();
+                _process = null;
+            }
+
             foreach (var win in _openWindows.ToList())
             {
                 win.Close();

@@ -30,25 +30,38 @@ internal class Program
             return 0;
         }
 
-        var command = args[0].ToLowerInvariant();
-        var parsed = ParseArgs(args[1..]);
-
-        return command switch
+        try
         {
-            "inspect" => RunInspect(parsed),
-            "run"     => RunPlan(parsed),
-            "launch"  => RunLaunch(parsed),
-            "attach"  => RunAttach(parsed),
-            "wait"    => RunWait(parsed),
-            "text"    => RunText(parsed),
-            "shot"    => RunShot(parsed),
-            "windows" => RunWindows(parsed),
-            "switch"  => RunSwitchWindow(parsed),
-            "record"  => RunRecord(parsed),
-            "replay"  => RunReplay(parsed),
-            "export"  => RunExport(parsed),
-            _         => UnknownCommand(command)
-        };
+            var command = args[0].ToLowerInvariant();
+            var parsed = ParseArgs(args[1..]);
+
+            return command switch
+            {
+                "inspect" => RunInspect(parsed),
+                "run"     => RunPlan(parsed),
+                "launch"  => RunLaunch(parsed),
+                "attach"  => RunAttach(parsed),
+                "wait"    => RunWait(parsed),
+                "text"    => RunText(parsed),
+                "shot"    => RunShot(parsed),
+                "windows" => RunWindows(parsed),
+                "switch"  => RunSwitchWindow(parsed),
+                "record"  => RunRecord(parsed),
+                "replay"  => RunReplay(parsed),
+                "export"  => RunExport(parsed),
+                _         => UnknownCommand(command)
+            };
+        }
+        catch (PlatformNotSupportedException pex)
+        {
+            Console.Error.WriteLine($"Platform Error: {pex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
     }
 
     // ── Commands ─────────────────────────────────────────────────────────────
@@ -150,7 +163,8 @@ internal class Program
             return 1;
         }
 
-        var driver = DriverFactory.CreateFlauiDriver();
+        var driverType = p.Get("driver", DriverFactory.DefaultDriverType) ?? DriverFactory.DefaultDriverType;
+        var driver = DriverFactory.CreateDriver(driverType);
         try
         {
             var engine = new AgentAutomationEngine(driver);
@@ -314,7 +328,7 @@ internal class Program
     /// </summary>
     static IDriver CreateDriverForSession(ParsedArgs p, bool launchIfNeeded)
     {
-        var driverType = p.Get("driver", "flaui") ?? "flaui";
+        var driverType = p.Get("driver", DriverFactory.DefaultDriverType) ?? DriverFactory.DefaultDriverType;
         var driver = DriverFactory.CreateDriver(driverType);
 
         // Explicit attach requested

@@ -9,11 +9,21 @@ namespace DesktopAutomationTest.Core;
 public static class DriverFactory
 {
     /// <summary>
-    /// Creates a FlaUI-based driver instance.
+    /// Gets the default driver type for the current operating system ("flaui" on Windows, "avalonia" on Linux/macOS).
+    /// </summary>
+    public static string DefaultDriverType => OperatingSystem.IsWindows() ? "flaui" : "avalonia";
+
+    /// <summary>
+    /// Creates a FlaUI-based driver instance. Throws PlatformNotSupportedException on non-Windows platforms.
     /// </summary>
     /// <returns>A new FlaUIAdapter instance.</returns>
     public static IDriver CreateFlauiDriver()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException(
+                "FlaUI relies on Windows UI Automation (UIA3) and is only supported on Windows. On Linux and macOS, use the 'avalonia' driver (--driver avalonia).");
+        }
         return new FlaUIAdapter();
     }
 
@@ -26,19 +36,22 @@ public static class DriverFactory
     }
 
     /// <summary>
-    /// Creates a driver instance based on the specified type.
+    /// Creates a driver instance based on the specified type ("flaui", "avalonia", or "auto").
     /// </summary>
-    /// <param name="driverType">The type of driver to create ("flaui" or "avalonia").</param>
+    /// <param name="driverType">The type of driver to create. Defaults to the OS-appropriate driver when omitted or "auto".</param>
     /// <returns>A new driver instance.</returns>
     /// <exception cref="ArgumentException">Thrown when an unsupported driver type is specified.</exception>
-    public static IDriver CreateDriver(string driverType)
+    public static IDriver CreateDriver(string? driverType = null)
     {
-        Guard.AgainstNullOrEmpty(driverType, nameof(driverType));
-        return driverType.ToLowerInvariant() switch
+        var selected = string.IsNullOrWhiteSpace(driverType) || driverType.Equals("auto", StringComparison.OrdinalIgnoreCase)
+            ? DefaultDriverType
+            : driverType;
+
+        return selected.ToLowerInvariant() switch
         {
-            "flaui" => new FlaUIAdapter(),
-            "avalonia" => new AvaloniaDriver(),
-            _ => throw new ArgumentException($"Unsupported driver type: {driverType}", nameof(driverType))
+            "flaui" => CreateFlauiDriver(),
+            "avalonia" => CreateAvaloniaDriver(),
+            _ => throw new ArgumentException($"Unsupported driver type: {driverType}. Valid options: flaui, avalonia", nameof(driverType))
         };
     }
 }
