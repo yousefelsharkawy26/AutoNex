@@ -254,8 +254,38 @@ public class AgentBatchRunner
                 }
                 return (true, null, null);
 
+            case "scroll":
+                var scrollDir = action.Direction ?? action.Value ?? "down";
+                return _driver.Scroll(scrollDir, targetId)
+                    ? (true, null, null)
+                    : (false, $"Failed to scroll '{scrollDir}'.", null);
+
+            case "scroll_into_view":
+                if (string.IsNullOrEmpty(targetId))
+                    return (false, "Missing 'id' for scroll_into_view action.", null);
+                return _driver.ScrollIntoView(targetId)
+                    ? (true, null, null)
+                    : (false, $"Failed to scroll element '{targetId}' into view.", GetCandidateDiagnostic(targetId));
+
+            case "clear":
+                if (string.IsNullOrEmpty(targetId))
+                    return (false, "Missing 'id' for clear action.", null);
+                return _driver.TypeTextByAutomationId(targetId, string.Empty)
+                    ? (true, null, null)
+                    : (false, $"Failed to clear text in '{targetId}'.", GetCandidateDiagnostic(targetId));
+
             default:
-                return (false, $"Unknown action type '{action.Action}'.", null);
+                var validActions = new[] { "click", "type", "check", "uncheck", "select", "double_click", "right_click", "hover", "press_key", "send_keys", "wait", "assert_text", "scroll", "scroll_into_view", "clear" };
+                var closest = validActions
+                    .Select(a => new { Action = a, Distance = FuzzyLocator.CalculateSimilarity(type, a) })
+                    .OrderByDescending(x => x.Distance)
+                    .FirstOrDefault();
+
+                var suggestion = closest != null && closest.Distance > 0.4
+                    ? $" Did you mean '{closest.Action}'?"
+                    : "";
+
+                return (false, $"Unknown action type '{action.Action}'.{suggestion}", null);
         }
     }
 

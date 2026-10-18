@@ -63,7 +63,7 @@ public class Program
                         serverInfo = new { name = "autonex-desktop-mcp", version = "1.2.0" }
 =======
                         capabilities = new { tools = new { } },
-                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.5.0" }
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.6.0" }
 >>>>>>> f70b1d2
                     });
                 }
@@ -538,6 +538,18 @@ public class Program
                 // Engine or standalone generator can be called directly
                 var engineToUse = _engine ?? new AgentAutomationEngine(DriverFactory.CreateFlauiDriver());
                 return engineToUse.ExportSessionAsTest(expSessionPath, expFormat);
+
+            case "scroll":
+                if (_engine == null) return "Error: No application is currently launched. Use launch_application first.";
+                var sDir = arguments.TryGetProperty("direction", out var sd) ? sd.GetString() ?? "down" : "down";
+                var sId = arguments.TryGetProperty("id", out var si) ? si.GetString() : null;
+                return _engine.Scroll(sDir, sId);
+
+            case "scroll_into_view":
+                if (_engine == null) return "Error: No application is currently launched. Use launch_application first.";
+                var svId = arguments.GetProperty("id").GetString();
+                if (string.IsNullOrEmpty(svId)) return "Error: id is required.";
+                return _engine.ScrollIntoView(svId);
 
             case "close_application":
                 _driver?.Dispose();

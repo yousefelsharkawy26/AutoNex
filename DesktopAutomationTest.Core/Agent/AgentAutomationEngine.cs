@@ -175,7 +175,7 @@ public class AgentAutomationEngine
         }
 
         var message = savedPath != null
-            ? $"Screenshot captured. Saved: {savedPath}"
+            ? $"Screenshot saved: {savedPath}"
             : "Screenshot captured.";
         return pngBytes != null
             ? AgentOperationResult.WithImage(message, pngBytes)
@@ -187,24 +187,24 @@ public class AgentAutomationEngine
     /// </summary>
     public string ListWindows()
     {
-        var windows = _driver.ListAppWindows();
-        if (windows.Count == 0)
+        var windows = _driver.GetOpenWindowTitles();
+        if (windows == null || windows.Count == 0)
         {
-            return "No windows found for the automated application.";
+            return "No open windows found.";
         }
 
-        return string.Join("\n", windows.Select((w, i) => $"{i + 1}. \"{w.Title}\" (pid {w.ProcessId})"));
+        return string.Join("\n", windows.Select((title, i) => $"[{i}] {title}"));
     }
 
     /// <summary>
     /// Switches automation context to the app window whose title contains the given text.
     /// </summary>
-    public string SwitchWindow(string titleContains)
+    public string SwitchWindow(string titleContains, int timeoutSeconds = 5)
     {
-        var ok = _driver.SwitchWindow(titleContains);
+        var ok = _driver.SwitchToWindow(titleContains, TimeSpan.FromSeconds(timeoutSeconds));
         return ok
-            ? $"Switched active window to one matching '{titleContains}'."
-            : $"Error: no application window matches '{titleContains}'.";
+            ? $"Switched context to window matching: '{titleContains}'"
+            : $"Error: no window found matching '{titleContains}'.";
     }
 
     // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
@@ -316,38 +316,6 @@ public class AgentAutomationEngine
         return result.ToSummary();
     }
 
-    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
-
-    /// <summary>
-    /// Lists titles of all currently open top-level windows belonging to the application.
-    /// </summary>
-    public string ListWindows()
-    {
-        var titles = _driver.GetOpenWindowTitles();
-        if (titles.Count == 0) return "No open windows found.";
-        return string.Join("\n", titles.Select((t, i) => $"[{i}] {t}"));
-    }
-
-    /// <summary>
-    /// Switches automation context to a window by title or substring.
-    /// </summary>
-    public string SwitchWindow(string titleSubstring, int timeoutSeconds = 5)
-    {
-        var ok = _driver.SwitchToWindow(titleSubstring, TimeSpan.FromSeconds(timeoutSeconds));
-        return ok
-            ? $"Switched context to window matching: '{titleSubstring}'"
-            : $"Error: window matching '{titleSubstring}' not found after {timeoutSeconds}s.";
-    }
-
-    /// <summary>
-    /// Closes the currently active window.
-    /// </summary>
-    public string CloseCurrentWindow()
-    {
-        _driver.CloseCurrentWindow();
-        return "Current window closed.";
-    }
-
     // ── [SESSION-TO-TEST] Export Session to C# or Gherkin ─────────────────────
 
     /// <summary>
@@ -384,5 +352,31 @@ public class AgentAutomationEngine
         {
             return $"Error exporting test: {ex.Message}";
         }
+    }
+
+    // ── [SCROLLING] Accessibility & Container Scrolling ───────────────────────
+
+    /// <summary>
+    /// Scrolls the element or active window in the specified direction ("up", "down", "left", "right").
+    /// </summary>
+    public string Scroll(string direction = "down", string? automationId = null)
+    {
+        var targetId = !string.IsNullOrEmpty(automationId) ? ResolveWithHealing(automationId) : null;
+        var ok = _driver.Scroll(direction, targetId);
+        return ok
+            ? $"Scrolled '{direction}' successfully."
+            : $"Failed to scroll '{direction}'.";
+    }
+
+    /// <summary>
+    /// Scrolls a container until the target element is visible on screen.
+    /// </summary>
+    public string ScrollIntoView(string automationId)
+    {
+        var targetId = ResolveWithHealing(automationId);
+        var ok = _driver.ScrollIntoView(targetId);
+        return ok
+            ? $"Scrolled element '{targetId}' into view."
+            : $"Failed to scroll element '{targetId}' into view.";
     }
 }

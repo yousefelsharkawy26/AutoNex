@@ -595,4 +595,61 @@ public class AgentAutomationTests
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }
     }
+
+    // ── [P0-SCROLL-AND-FUZZY-ACTION] Tests ──────────────────────────────────
+
+    [Fact]
+    public void AgentBatchRunner_FuzzyActionName_SuggestsCorrection_OnTypo()
+    {
+        var mockDriver = new Mock<IDriver>();
+        var runner = new AgentBatchRunner(mockDriver.Object);
+
+        var actions = new List<AgentAction>
+        {
+            new() { Action = "clik", AutomationId = "SubmitButton" }
+        };
+
+        var result = runner.Execute(actions);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("Did you mean 'click'?");
+    }
+
+    [Fact]
+    public void AgentBatchRunner_ScrollAndScrollIntoView_ExecutesSuccessfully()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.Scroll("down", "ContainerList")).Returns(true);
+        mockDriver.Setup(d => d.ScrollIntoView("BottomItem")).Returns(true);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var actions = new List<AgentAction>
+        {
+            new() { Action = "scroll", AutomationId = "ContainerList", Direction = "down" },
+            new() { Action = "scroll_into_view", AutomationId = "BottomItem" }
+        };
+
+        var result = runner.Execute(actions);
+
+        result.Success.Should().BeTrue();
+        result.ExecutedStepsCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void AgentBatchRunner_ClearAction_ClearsTextSuccessfully()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.TypeTextByAutomationId("SearchBox", string.Empty, null)).Returns(true);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var actions = new List<AgentAction>
+        {
+            new() { Action = "clear", AutomationId = "SearchBox" }
+        };
+
+        var result = runner.Execute(actions);
+
+        result.Success.Should().BeTrue();
+        result.ExecutedStepsCount.Should().Be(1);
+    }
 }

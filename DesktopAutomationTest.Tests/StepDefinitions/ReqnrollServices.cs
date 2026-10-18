@@ -423,5 +423,9 @@ public static class ReqnrollServices
         public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null) => !string.IsNullOrEmpty(titleSubstring);
 
         public void CloseCurrentWindow() { }
+
+        public bool Scroll(string direction = "down", string? automationId = null) => true;
+
+        public bool ScrollIntoView(string targetAutomationId) => !string.IsNullOrEmpty(targetAutomationId);
     }
 }

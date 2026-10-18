@@ -63,114 +63,15 @@ public class FlaUIAdapter : IDriver
         }
     }
 
-    /// <summary>
-    /// Returns true when the launched process is still running and a window handle exists.
-    /// </summary>
-    public bool IsApplicationAlive()
-    {
-        try
-        {
-            if (_application == null || _disposed)
-                return false;
-
-            var proc = _application.Process;
-            if (proc == null)
-                return false;
-
-            proc.Refresh();
-            return !proc.HasExited && _mainWindow != null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Enumerates every top-level window belonging to the launched application's process.
-    /// Includes modal dialogs (MessageBox, Open/Save file dialogs, secondary windows) that
-    /// are NOT descendants of the main window — without this, dialogs are unreachable.
-    /// The main window is searched first so it always wins ties.
-    /// </summary>
-    private IEnumerable<AutomationElement> GetAppWindows()
-    {
-        if (_mainWindow != null)
-        {
-            yield return _mainWindow;
-        }
-
-        try
-        {
-            var pid = _application?.Process?.Id ?? -1;
-            if (pid <= 0)
-            {
-                yield break;
-            }
-
-            var desktop = _automation.GetDesktop();
-            var topLevelWindows = desktop.FindAllChildren(cf => cf.ByControlType(ControlType.Window));
-
-            foreach (var win in topLevelWindows)
-            {
-                try
-                {
-                    if (win.Properties.ProcessId.ValueOrDefault == pid &&
-                        win.Equals(_mainWindow) == false)
-                    {
-                        yield return win;
-                    }
-                }
-                catch
-                {
-                    // Transient COM error on a single window — skip it.
-                }
-            }
-        }
-        catch
-        {
-            // Desktop enumeration failed — main window search above already ran.
-        }
-    }
-
-    /// <summary>
-    /// Finds an element by AutomationId across ALL application windows (main + dialogs).
-    /// </summary>
-    private AutomationElement? FindAcrossWindows(string automationId)
-    {
-        foreach (var window in GetAppWindows())
-        {
-            try
-            {
-                var element = window.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
-                if (element != null)
-                {
-                    return element;
-                }
-            }
-            catch
-            {
-                // Window may have closed between enumeration and search — try next.
-            }
-        }
-
-        return null;
-    }
-
-    // Helper: Finds descendant element with polling timeout (searches main window AND dialogs)
+    // Helper: Finds descendant element with polling timeout
     private AutomationElement? FindElement(string automationId, TimeSpan? timeout = null)
     {
-        if (!IsApplicationAlive())
-        {
-            throw new InvalidOperationException(
-                "The target application is no longer running. Call launch_application again.");
-        }
-
         var findTimeout = timeout ?? TimeSpan.FromSeconds(5);
         var startTime = DateTime.UtcNow;
 
         while (DateTime.UtcNow - startTime <= findTimeout)
         {
-            var element = FindAcrossWindows(automationId);
+            var element = _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
             if (element != null)
             {
                 return element;
@@ -178,7 +79,7 @@ public class FlaUIAdapter : IDriver
             Thread.Sleep(50);
         }
 
-        return FindAcrossWindows(automationId);
+        return _mainWindow?.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
     }
 
     /// <summary>
@@ -275,20 +176,8 @@ public class FlaUIAdapter : IDriver
             if (element == null)
                 return false;
 
-            // Prefer the Value pattern: it returns live content for Edits, Text blocks,
-            // ComboBoxes, etc. Reading only Properties.Name misses TextBox/TextBlock values.
-            if (element.Patterns.Value.IsSupported)
-            {
-                var value = element.Patterns.Value.Pattern.Value.ValueOrDefault;
-                if (!string.IsNullOrEmpty(value))
-                {
-                    text = value;
-                    return true;
-                }
-            }
-
             var textBox = element.AsTextBox();
-            if (textBox != null && !string.IsNullOrEmpty(textBox.Text))
+            if (textBox != null)
             {
                 text = textBox.Text;
                 return true;
@@ -702,8 +591,6 @@ public class FlaUIAdapter : IDriver
 
     /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
-    /// Includes the main window AND any open dialogs/secondary windows of the app process,
-    /// each labelled with its window title so agents can target them via switch_window.
     /// </summary>
     public string GetCompactUiTree(string format = "text")
     {
@@ -712,228 +599,12 @@ public class FlaUIAdapter : IDriver
             return "[No Main Window Available]";
         }
 
-        var asJson = string.Equals(format, "json", StringComparison.OrdinalIgnoreCase);
-        var elements = new List<Agent.CompactUiElement>();
-
-        foreach (var window in GetAppWindows())
+        if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
         {
-            try
-            {
-                var windowElements = Agent.CompactUiTree.ExtractInteractiveElements(window);
-
-                // Label elements that live in a non-main window so agents know a
-                // dialog is open (token cost: one short suffix per element).
-                if (!window.Equals(_mainWindow))
-                {
-                    var title = SafeWindowTitle(window);
-                    foreach (var e in windowElements)
-                    {
-                        elements.Add(e with { Window = title });
-                    }
-                }
-                else
-                {
-                    elements.AddRange(windowElements);
-                }
-            }
-            catch
-            {
-                // Window closed mid-enumeration — skip it.
-            }
+            return Agent.CompactUiTree.DumpAsJson(_mainWindow);
         }
 
-        if (asJson)
-        {
-            return Agent.CompactUiTree.SerializeElements(elements);
-        }
-
-        if (elements.Count == 0)
-        {
-            return "[Empty or No Interactive Elements Found]";
-        }
-
-        return string.Join("\n", elements.Select(e => e.ToString()));
-    }
-
-    private static string SafeWindowTitle(AutomationElement window)
-    {
-        try
-        {
-            var name = window.Properties.Name.ValueOrDefault;
-            return string.IsNullOrWhiteSpace(name) ? "Dialog" : name;
-        }
-        catch
-        {
-            return "Dialog";
-        }
-    }
-
-    /// <summary>
-    /// Lists all top-level windows of the application (title + class + automationId hints).
-    /// </summary>
-    public IReadOnlyList<(string Title, int ProcessId)> ListAppWindows()
-    {
-        var result = new List<(string, int)>();
-        try
-        {
-            var desktop = _automation.GetDesktop();
-            var pid = _application?.Process?.Id ?? -1;
-            var topLevelWindows = desktop.FindAllChildren(cf => cf.ByControlType(ControlType.Window));
-
-            foreach (var win in topLevelWindows)
-            {
-                try
-                {
-                    var procId = win.Properties.ProcessId.ValueOrDefault;
-                    if (procId == pid)
-                    {
-                        result.Add((SafeWindowTitle(win), procId));
-                    }
-                }
-                catch
-                {
-                    // Skip unreadable window.
-                }
-            }
-        }
-        catch
-        {
-            // Enumeration failed; caller gets an empty list.
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Switches the driver's active main-window context to the app window whose title
-    /// contains the given text (case-insensitive). Subsequent element lookups prefer
-    /// this window while still falling back to all app windows.
-    /// </summary>
-    public bool SwitchWindow(string titleContains)
-    {
-        Guard.AgainstNullOrEmpty(titleContains, nameof(titleContains));
-
-        try
-        {
-            var windows = _automation.GetDesktop()
-                .FindAllChildren(cf => cf.ByControlType(ControlType.Window));
-
-            var pid = _application?.Process?.Id ?? -1;
-
-            foreach (var win in windows)
-            {
-                try
-                {
-                    if (win.Properties.ProcessId.ValueOrDefault != pid)
-                        continue;
-
-                    var title = SafeWindowTitle(win);
-                    if (title.Contains(titleContains, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _mainWindow = win.AsWindow();
-                        _mainWindow.SetForeground();
-                        return true;
-                    }
-                }
-                catch
-                {
-                    // Keep scanning.
-                }
-            }
-
-            return false;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Attaches the driver to an already-running process by its OS process id,
-    /// reusing its main window instead of launching a new copy of the app.
-    /// </summary>
-    public void AttachToProcess(int processId)
-    {
-        try
-        {
-            var app = Application.Attach(processId);
-            _application = app;
-            _mainWindow = app.GetMainWindow(_automation, TimeSpan.FromSeconds(10));
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to attach to process {processId}: {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    /// Attaches the driver to an already-running process by executable name
-    /// (without extension). Fails when zero or multiple matches exist unless
-    /// the newest process is requested.
-    /// </summary>
-    public void AttachToProcessByName(string processName)
-    {
-        Guard.AgainstNullOrEmpty(processName, nameof(processName));
-
-        try
-        {
-            var candidates = System.Diagnostics.Process
-                .GetProcessesByName(processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                    ? processName[..^4]
-                    : processName);
-
-            if (candidates.Length == 0)
-            {
-                throw new InvalidOperationException(
-                    $"No running process named '{processName}' was found.");
-            }
-
-            // Prefer the most recently started instance.
-            var proc = candidates.OrderByDescending(p =>
-            {
-                try { return p.StartTime; } catch { return DateTime.MinValue; }
-            }).First();
-
-            AttachToProcess(proc.Id);
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to attach to process '{processName}': {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    /// Captures the current screen/window and returns raw PNG bytes (for base64 transport to agents).
-    /// </summary>
-    public byte[]? CaptureScreenshotBytes()
-    {
-        try
-        {
-            using var memory = new MemoryStream();
-            if (_mainWindow != null)
-            {
-                using var captured = Capture.Element(_mainWindow);
-                captured.Bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
-            }
-            else
-            {
-                using var fullScreen = Capture.Screen();
-                fullScreen.Bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
-            }
-
-            return memory.ToArray();
-        }
-        catch (Exception)
-        {
-            return null;
-        }
+        return Agent.CompactUiTree.DumpAsText(_mainWindow);
     }
 
     /// <summary>
@@ -1009,6 +680,129 @@ public class FlaUIAdapter : IDriver
         catch
         {
             // Ignore
+        }
+    }
+
+    public IReadOnlyList<(string Title, int ProcessId)> ListAppWindows()
+    {
+        return GetOpenWindowTitles()
+            .Select(t => (t, _application?.ProcessId ?? 0))
+            .ToList();
+    }
+
+    public bool SwitchWindow(string titleContains)
+    {
+        return SwitchToWindow(titleContains);
+    }
+
+    public void AttachToProcess(int processId)
+    {
+        _application = FlaUI.Core.Application.Attach(processId);
+        _mainWindow = _application.GetMainWindow(_automation, TimeSpan.FromSeconds(5));
+    }
+
+    public void AttachToProcessByName(string processName)
+    {
+        var procs = System.Diagnostics.Process.GetProcessesByName(processName);
+        if (procs.Length == 0)
+            throw new ArgumentException($"Process '{processName}' not found.");
+
+        _application = FlaUI.Core.Application.Attach(procs[0].Id);
+        _mainWindow = _application.GetMainWindow(_automation, TimeSpan.FromSeconds(5));
+    }
+
+    public byte[]? CaptureScreenshotBytes()
+    {
+        try
+        {
+            if (_mainWindow == null) return null;
+            using var img = FlaUI.Core.Capturing.Capture.Element(_mainWindow);
+            using var ms = new MemoryStream();
+            img.Bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            return ms.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public bool IsApplicationAlive()
+    {
+        if (_application == null || _disposed) return false;
+        try
+        {
+            var proc = System.Diagnostics.Process.GetProcessById(_application.ProcessId);
+            return !proc.HasExited && _mainWindow != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool Scroll(string direction = "down", string? automationId = null)
+    {
+        try
+        {
+            var target = !string.IsNullOrEmpty(automationId) ? FindElement(automationId) : _mainWindow;
+            if (target == null) return false;
+
+            if (target.Patterns.Scroll.IsSupported)
+            {
+                var pattern = target.Patterns.Scroll.Pattern;
+                var (h, v) = direction.ToLowerInvariant() switch
+                {
+                    "up" => (ScrollAmount.NoAmount, ScrollAmount.SmallDecrement),
+                    "down" => (ScrollAmount.NoAmount, ScrollAmount.SmallIncrement),
+                    "left" => (ScrollAmount.SmallDecrement, ScrollAmount.NoAmount),
+                    "right" => (ScrollAmount.SmallIncrement, ScrollAmount.NoAmount),
+                    _ => (ScrollAmount.NoAmount, ScrollAmount.SmallIncrement)
+                };
+                pattern.Scroll(h, v);
+                return true;
+            }
+
+            target.Focus();
+            if (direction.Equals("up", StringComparison.OrdinalIgnoreCase))
+            {
+                Mouse.Scroll(1);
+                return true;
+            }
+            if (direction.Equals("down", StringComparison.OrdinalIgnoreCase))
+            {
+                Mouse.Scroll(-1);
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool ScrollIntoView(string targetAutomationId)
+    {
+        Guard.AgainstNullOrEmpty(targetAutomationId, nameof(targetAutomationId));
+
+        try
+        {
+            var target = FindElement(targetAutomationId);
+            if (target == null) return false;
+
+            if (target.Patterns.ScrollItem.IsSupported)
+            {
+                target.Patterns.ScrollItem.Pattern.ScrollIntoView();
+                return true;
+            }
+
+            return target.Properties.IsOffscreen.ValueOrDefault == false;
+        }
+        catch
+        {
+            return false;
         }
     }
 

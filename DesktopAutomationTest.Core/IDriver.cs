@@ -215,4 +215,21 @@ public interface IDriver : IDisposable
     /// Closes the currently active window. If it is the last window, the application terminates.
     /// </summary>
     void CloseCurrentWindow();
+
+    // ── Scrolling & Accessibility Navigation ──────────────────────────────────
+
+    /// <summary>
+    /// Scrolls the element or active window in the specified direction ("up", "down", "left", "right").
+    /// </summary>
+    /// <param name="direction">Direction to scroll: "down" (default), "up", "left", "right".</param>
+    /// <param name="automationId">Optional container ID. If null, scrolls active window.</param>
+    /// <returns>True if scroll was executed; otherwise false.</returns>
+    bool Scroll(string direction = "down", string? automationId = null);
+
+    /// <summary>
+    /// Scrolls a container until the target element is visible on screen.
+    /// </summary>
+    /// <param name="targetAutomationId">Automation ID of the element to scroll into view.</param>
+    /// <returns>True if element was brought into view; otherwise false.</returns>
+    bool ScrollIntoView(string targetAutomationId);
 }

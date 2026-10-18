@@ -48,6 +48,20 @@ public record AgentAction
     [JsonPropertyName("timeout")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? TimeoutSeconds { get; init; }
+
+    /// <summary>
+    /// Direction for scroll action: "down" (default), "up", "left", "right".
+    /// </summary>
+    [JsonPropertyName("direction")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Direction { get; init; }
+
+    /// <summary>
+    /// Whether to clear existing text before typing (defaults to false).
+    /// </summary>
+    [JsonPropertyName("clear")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Clear { get; init; }
 }
 
 /// <summary>
