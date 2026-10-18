@@ -246,54 +246,17 @@ public class AvaloniaDriver : IDriver
                TryFindByAutomationId(targetAutomationId, timeout);
     }
 
-    public bool TakeScreenshot(string filePath)
+    public bool ClearByAutomationId(string automationId, TimeSpan? timeout = null)
     {
-        // Standalone or Headless screenshot support
-        return true;
-    }
-
-    public Rectangle GetWindowBounds()
-    {
-        if (_activeWindow == null) return new Rectangle(0, 0, 800, 600);
-        return new Rectangle(0, 0, (int)_activeWindow.Width, (int)_activeWindow.Height);
-    }
-
-    public bool WaitForInputIdle(TimeSpan timeout) => true;
-
-    // ── [FEATURE-WINDOWS] Multi-window / process support (HEAD-side interface members) ──
-
-    public IReadOnlyList<(string Title, int ProcessId)> ListAppWindows()
-        => GetOpenWindowTitles().Select(t => (t, Environment.ProcessId)).ToList();
-
-    /// <summary>
-    /// Switches automation context to the window whose title contains the given text.
-    /// Delegates to <see cref="SwitchToWindow"/> so both APIs share one implementation.
-    /// </summary>
-    public bool SwitchWindow(string titleContains)
-        => SwitchToWindow(titleContains);
-
-    public void AttachToProcess(int processId)
-        => throw new PlatformNotSupportedException(
-            "Attaching to an external process by id is only supported by the FlaUI (Windows UIA) driver.");
-
-    public void AttachToProcessByName(string processName)
-        => throw new PlatformNotSupportedException(
-            "Attaching to an external process by name is only supported by the FlaUI (Windows UIA) driver.");
-
-    public byte[]? CaptureScreenshotBytes()
-        => null; // Not yet supported in headless/Avalonia mode; TakeScreenshot(filePath) remains a no-op success.
-
-    public bool IsApplicationAlive()
-        => !_disposed && _activeWindow != null;
-
-    // ── Token-Minimized UI Tree Extraction (Cross-Platform) ───────────────────
-
-    public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)
-    {
-        if (_activeWindow == null)
+        var control = FindControlById(automationId);
+        if (control is TextBox tb)
         {
-            return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ? "[]" : "[No Active Avalonia Window]";
+            tb.Text = string.Empty;
+            return true;
         }
+        return false;
+    }
+
 
         Visual root = _activeWindow;
         if (!string.IsNullOrEmpty(containerId))

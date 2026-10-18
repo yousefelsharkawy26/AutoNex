@@ -71,12 +71,17 @@ public class Program
                     await SendResponseAsync(writer, id, new
                     {
                         protocolVersion = "2024-11-05",
+<<<<<<< HEAD
+                        capabilities = new { tools = new { listChanged = false } },
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.5.0" }
+=======
                         capabilities = new
                         {
                             tools = new { listChanged = false },
                             logging = new { }
                         },
                         serverInfo = new { name = "autonex-desktop-mcp", version = "1.6.0" }
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
                     });
                 }
                 else if (method == "ping")
@@ -367,16 +372,45 @@ public class Program
             },
             new
             {
+<<<<<<< HEAD
+                name = "attach_to_process",
+                description = "Attaches to an ALREADY-RUNNING application process (by process_id or process_name) instead of launching a new instance. Enables session reuse so repeated CLI/MCP calls do not relaunch the app.",
+=======
                 name = "record_session",
                 description = "Executes a multi-step plan AND records every action + result to a JSON session file for zero-token future replay.",
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
+<<<<<<< HEAD
+                        process_id = new { type = "integer", description = "OS process id to attach to." },
+                        process_name = new { type = "string", description = "Executable name (with or without .exe) of a running process to attach to. Used when process_id is absent." }
+                    }
+                }
+            },
+            new
+            {
+                name = "record_session",
+                description = "Executes a multi-step plan AND records every action + result to a JSON session file for ZERO-TOKEN future replay. Use this the first time you automate a flow.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        plan_json = new
+                        {
+                            type = "string",
+                            description = "JSON array of actions (same format as execute_plan)."
+                        },
+                        session_path = new { type = "string", description = "Optional output path for the session JSON file. Auto-generated in temp folder if omitted." },
+                        label = new { type = "string", description = "Optional human-readable label for this session (e.g. 'login flow')." }
+=======
                         plan_json = new { type = "string", description = "JSON array of actions (same format as execute_plan)." },
                         session_path = new { type = "string", description = "Optional output path for the session JSON file." },
                         label = new { type = "string", description = "Optional human-readable label for this session." }
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
                     },
                     required = new[] { "plan_json" }
                 }
@@ -395,6 +429,10 @@ public class Program
                     required = new[] { "session_path" }
                 }
             },
+<<<<<<< HEAD
+            new
+            {
+=======
             new
             {
                 name = "list_windows",
@@ -446,6 +484,7 @@ public class Program
             },
             new
             {
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
                 name = "export_session_as_test",
                 description = "Converts a recorded session JSON file into executable C# xUnit test code or a Gherkin/Reqnroll feature scenario.",
                 inputSchema = new
@@ -460,6 +499,29 @@ public class Program
                 }
             },
             new
+<<<<<<< HEAD
+            {
+                name = "list_windows",
+                description = "Lists all top-level windows of the automated application, including modal dialogs (MessageBox, file dialogs, secondary windows).",
+                inputSchema = new { type = "object", properties = new { } }
+            },
+            new
+            {
+                name = "switch_window",
+                description = "Switches automation context to the application window whose title contains the given text (case-insensitive). Use after a dialog opens to bring it to the foreground and target its elements.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        title = new { type = "string", description = "Substring of the target window title (e.g. Save As, Confirm)." }
+                    },
+                    required = new[] { "title" }
+                }
+            },
+            new
+=======
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
             {
                 name = "close_application",
                 description = "Closes the automated application and cleans up resources and session state.",
@@ -490,6 +552,12 @@ public class Program
                     }
 
                     _driver?.Dispose();
+<<<<<<< HEAD
+                    var driverType = arguments.TryGetProperty("driver", out var dt) ? dt.GetString() ?? "flaui" : "flaui";
+                    _driver = DriverFactory.CreateDriver(driverType);
+                    _driver.Initialize(path, args);
+                    _engine = new AgentAutomationEngine(_driver);
+=======
                     _driver = DriverFactory.CreateDriver(driverType);
                     _driver.Initialize(path, args);
                     _engine = new AgentAutomationEngine(_driver);
@@ -499,6 +567,7 @@ public class Program
                     {
                         SaveSession(flaui.Application.ProcessId, path, driverType);
                     }
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
 
                     return ToolCallOutcome.Ok($"Application launched successfully: {path} (Driver: {driverType})");
 
@@ -661,6 +730,65 @@ public class Program
 
                 case "record_session":
                     if (_engine == null)
+<<<<<<< HEAD
+                    {
+                        return ToolCallOutcome.Fail("Error: No application is currently launched. Use launch_application or attach_to_process first.");
+                    }
+
+                    var recPlan = arguments.TryGetProperty("plan_json", out var rjp) ? rjp.GetString() : null;
+                    if (string.IsNullOrEmpty(recPlan))
+                    {
+                        return ToolCallOutcome.Fail("Error: plan_json is required.");
+                    }
+
+                    var recPath  = arguments.TryGetProperty("session_path", out var rp) ? rp.GetString() : null;
+                    var recLabel = arguments.TryGetProperty("label", out var rl) ? rl.GetString() : null;
+                    var recResult = _engine.ExecuteAndRecord(recPlan, recPath, recLabel);
+                    return recResult.Contains("FAILED") || recResult.StartsWith("Error", StringComparison.Ordinal)
+                        ? ToolCallOutcome.Fail(recResult)
+                        : ToolCallOutcome.Ok(recResult);
+
+                case "replay_session":
+                    if (_engine == null)
+                    {
+                        return ToolCallOutcome.Fail("Error: No application is currently launched. Use launch_application or attach_to_process first.");
+                    }
+
+                    var replayPath = arguments.TryGetProperty("session_path", out var sp) ? sp.GetString() : null;
+                    if (string.IsNullOrEmpty(replayPath))
+                    {
+                        return ToolCallOutcome.Fail("Error: session_path is required.");
+                    }
+
+                    var replayResult = _engine.ReplaySession(replayPath);
+                    return replayResult.Contains("FAILED") || replayResult.StartsWith("error", StringComparison.OrdinalIgnoreCase)
+                        ? ToolCallOutcome.Fail(replayResult)
+                        : ToolCallOutcome.Ok(replayResult);
+
+                case "export_session_as_test":
+                    var expSessionPath = arguments.TryGetProperty("session_path", out var esp) ? esp.GetString() : null;
+                    if (string.IsNullOrEmpty(expSessionPath))
+                    {
+                        return ToolCallOutcome.Fail("Error: session_path is required.");
+                    }
+
+                    var expFormat = arguments.TryGetProperty("format", out var ef) ? ef.GetString() ?? "csharp" : "csharp";
+                    // Exporting code does not require a live app — create a throwaway driver if needed.
+                    var engineToUse = _engine ?? new AgentAutomationEngine(DriverFactory.CreateFlauiDriver());
+                    var exportResult = engineToUse.ExportSessionAsTest(expSessionPath, expFormat);
+                    return exportResult.StartsWith("Error", StringComparison.Ordinal)
+                        ? ToolCallOutcome.Fail(exportResult)
+                        : ToolCallOutcome.Ok(exportResult);
+
+                case "attach_to_process":
+                    var pidEl = arguments.TryGetProperty("process_id", out var pidProp) && pidProp.ValueKind == JsonValueKind.Number
+                        ? (int?)pidProp.GetInt32()
+                        : null;
+                    var procName = arguments.TryGetProperty("process_name", out var pnProp) ? pnProp.GetString() : null;
+
+                    if (pidEl == null && string.IsNullOrEmpty(procName))
+=======
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
                     {
                         return ToolCallOutcome.Fail("Error: No application is currently launched. Use launch_application or attach_to_process first.");
                     }

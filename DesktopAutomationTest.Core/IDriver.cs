@@ -157,6 +157,11 @@ public interface IDriver : IDisposable
     bool DragAndDrop(string sourceAutomationId, string targetAutomationId, TimeSpan? timeout = null);
 
     /// <summary>
+    /// Clears the current value/text of an input element (Edit/TextBox).
+    /// </summary>
+    bool ClearByAutomationId(string automationId, TimeSpan? timeout = null);
+
+    /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
     /// Includes all application windows (main window + open dialogs).
     /// </summary>
@@ -197,6 +202,13 @@ public interface IDriver : IDisposable
     /// Returns false when the target application has exited or the driver was disposed.
     /// </summary>
     bool IsApplicationAlive();
+
+    /// <summary>
+    /// Returns the OS process of the automated (launched or attached) application,
+    /// or null when no process is associated with this driver yet.
+    /// Used by CLI session persistence to record the pid for later attach/reuse.
+    /// </summary>
+    System.Diagnostics.Process? GetOwnProcess();
 
     // ── Window & Multi-Window Management ──────────────────────────────────────
 

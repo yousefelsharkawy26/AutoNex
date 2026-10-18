@@ -590,6 +590,47 @@ public class FlaUIAdapter : IDriver
     }
 
     /// <summary>
+    /// Clears the current text/value of an input element. Prefers the UIA
+    /// ValuePattern (instant, no keystrokes), falls back to Ctrl+A + Delete.
+    /// </summary>
+    public bool ClearByAutomationId(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            element.Focus();
+            Thread.Sleep(50);
+
+            if (element.Patterns.Value.IsSupported)
+            {
+                element.AsTextBox().Text = string.Empty;
+                return true;
+            }
+
+            // Fallback: select-all then delete via keyboard.
+            Keyboard.TypeSimultaneously(FlaUI.Core.VirtualKeyShort.CONTROL, FlaUI.Core.VirtualKeyShort.KEY_A);
+            Keyboard.Type(FlaUI.Core.VirtualKeyShort.DELETE);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
     /// </summary>
     public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)

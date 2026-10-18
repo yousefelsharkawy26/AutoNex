@@ -134,6 +134,27 @@ public static class CompactUiTree
     }
 
     /// <summary>
+    /// Computes a stable short hash over the serialized element list so agents can
+    /// detect UI changes cheaply (state-diffing: re-fetch the tree only when the
+    /// fingerprint differs from the one they already hold).
+    /// Uses FNV-1a — deterministic across processes and runs.
+    /// </summary>
+    public static string ComputeStateHash(IEnumerable<CompactUiElement> elements)
+    {
+        var payload = string.Join("|", elements.Select(e => $"{e.Type}|{e.AutomationId}|{e.Name}|{e.Value}|{e.State}|{e.Window}"));
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (var ch in payload)
+            {
+                hash ^= ch;
+                hash *= 16777619;
+            }
+            return hash.ToString("x8");
+        }
+    }
+
+    /// <summary>
     /// Serializes a pre-built element list (used when merging multiple windows).
     /// </summary>
     public static string SerializeElements(IEnumerable<CompactUiElement> elements)

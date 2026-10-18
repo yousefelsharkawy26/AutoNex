@@ -139,6 +139,8 @@ internal class Program
         return result.StartsWith("Error:") ? 1 : 0;
     }
 
+<<<<<<< HEAD
+=======
     static int RunAttach(ParsedArgs p)
     {
         var pidStr = p.Get("pid");
@@ -189,6 +191,7 @@ internal class Program
         return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
     }
 
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
     static int RunRecord(ParsedArgs p)
     {
         RequireArg(p, "app");
@@ -285,6 +288,59 @@ internal class Program
         return 0;
     }
 
+<<<<<<< HEAD
+    static int RunAttach(ParsedArgs p)
+    {
+        var pidStr = p.Get("pid");
+        var name = p.Get("name");
+
+        if (pidStr is null && name is null)
+        {
+            Console.Error.WriteLine("Error: --pid <processId> or --name <processName> is required.");
+            return 1;
+        }
+
+        var driver = DriverFactory.CreateFlauiDriver();
+        try
+        {
+            var engine = new AgentAutomationEngine(driver);
+            int? pid = int.TryParse(pidStr, out var parsedPid) ? parsedPid : null;
+            var result = engine.Attach(pid, name);
+            Console.WriteLine(result);
+            driver.Dispose();
+            return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
+        }
+        catch (Exception ex)
+        {
+            driver.Dispose();
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    static int RunWindows(ParsedArgs p)
+    {
+        RequireAppOrSession(p);
+        using var driver = CreateDriverForSession(p, launchIfNeeded: true);
+        var engine = new AgentAutomationEngine(driver);
+        Console.WriteLine(engine.ListWindows());
+        return 0;
+    }
+
+    static int RunSwitchWindow(ParsedArgs p)
+    {
+        RequireAppOrSession(p);
+        RequireArg(p, "title");
+
+        using var driver = CreateDriverForSession(p, launchIfNeeded: true);
+        var engine = new AgentAutomationEngine(driver);
+        var result = engine.SwitchWindow(p.Get("title")!);
+        Console.WriteLine(result);
+        return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
+    }
+
+=======
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
     static int UnknownCommand(string cmd)
     {
         Console.Error.WriteLine($"Error: Unknown command '{cmd}'. Run 'autonex help' for usage.");
@@ -302,12 +358,16 @@ internal class Program
 
     static IDriver CreateAndLaunch(ParsedArgs p)
     {
+<<<<<<< HEAD
+        var driver = CreateDriverForSession(p, launchIfNeeded: false);
+=======
         var appPath = p.Get("app")!;
         var appArgs = p.Get("args");
         var driverType = p.Get("driver", "flaui") ?? "flaui";
 
         var driver = DriverFactory.CreateDriver(driverType);
         driver.Initialize(appPath, appArgs);
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
         return driver;
     }
 
@@ -320,7 +380,8 @@ internal class Program
     /// </summary>
     static IDriver CreateDriverForSession(ParsedArgs p, bool launchIfNeeded)
     {
-        var driver = DriverFactory.CreateFlauiDriver();
+        var driverType = p.Get("driver", "flaui") ?? "flaui";
+        var driver = DriverFactory.CreateDriver(driverType);
 
         // Explicit attach requested
         var attachTo = p.Get("attach");
@@ -342,9 +403,9 @@ internal class Program
             }
         }
 
-        // Try reusing a live recorded session
+        // Try reusing a live recorded session (best-effort for non-FlaUI drivers).
         var session = ReadSession();
-        if (session != null)
+        if (session != null && string.Equals(driverType, "flaui", StringComparison.OrdinalIgnoreCase))
         {
             try
             {

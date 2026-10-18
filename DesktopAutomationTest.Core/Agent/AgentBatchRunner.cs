@@ -155,9 +155,12 @@ public class AgentBatchRunner
             case "type":
                 if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for type action.", null);
-                if (action.Clear == true)
+                // Optional: "clear": true empties the field before typing so agents
+                // don't need a separate step (saves tokens and avoids appended text).
+                // Accepted spellings: "clear" (canonical) and "clear_first" (alias).
+                if ((action.Clear == true || action.ClearFirst == true) && !_driver.ClearByAutomationId(targetId))
                 {
-                    _driver.TypeTextByAutomationId(targetId, string.Empty);
+                    return (false, $"Failed to clear '{targetId}' before typing.", GetCandidateDiagnostic(targetId));
                 }
                 return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
                     ? (true, null, null)
@@ -166,13 +169,35 @@ public class AgentBatchRunner
             case "paste":
                 if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for paste action.", null);
-                if (action.Clear == true)
+                if (action.Clear == true || action.ClearFirst == true)
                 {
-                    _driver.TypeTextByAutomationId(targetId, string.Empty);
+                    _driver.ClearByAutomationId(targetId);
                 }
                 return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
                     ? (true, null, null)
                     : (false, $"Failed to paste text into '{targetId}'.", GetCandidateDiagnostic(targetId));
+
+            case "clear":
+                if (string.IsNullOrEmpty(targetId))
+                    return (false, "Missing 'id' for clear action.", null);
+                return _driver.ClearByAutomationId(targetId)
+                    ? (true, null, null)
+                    : (false, $"Failed to clear element '{targetId}'.", GetCandidateDiagnostic(targetId));
+
+            case "scroll":
+                var scrollDirection = (action.Direction ?? action.Value ?? "down").Trim().ToLowerInvariant();
+                if (scrollDirection is not ("up" or "down" or "left" or "right"))
+                    return (false, $"Invalid scroll direction '{scrollDirection}'. Use up/down/left/right.", null);
+                return _driver.Scroll(scrollDirection, targetId)
+                    ? (true, null, null)
+                    : (false, $"Failed to scroll {scrollDirection} on '{targetId ?? "<focused window>"}'.", GetCandidateDiagnostic(targetId));
+
+            case "scroll_into_view":
+                if (string.IsNullOrEmpty(targetId))
+                    return (false, "Missing 'id' for scroll_into_view action.", null);
+                return _driver.ScrollIntoView(targetId)
+                    ? (true, null, null)
+                    : (false, $"Failed to scroll '{targetId}' into view.", GetCandidateDiagnostic(targetId));
 
             case "check":
                 if (string.IsNullOrEmpty(targetId))
@@ -273,38 +298,14 @@ public class AgentBatchRunner
                 }
                 return (true, null, null);
 
-            case "scroll":
-                var scrollDir = action.Direction ?? action.Value ?? "down";
-                return _driver.Scroll(scrollDir, targetId)
-                    ? (true, null, null)
-                    : (false, $"Failed to scroll '{scrollDir}'.", null);
-
-            case "scroll_into_view":
-                if (string.IsNullOrEmpty(targetId))
-                    return (false, "Missing 'id' for scroll_into_view action.", null);
-                return _driver.ScrollIntoView(targetId)
-                    ? (true, null, null)
-                    : (false, $"Failed to scroll element '{targetId}' into view.", GetCandidateDiagnostic(targetId));
-
-            case "clear":
-                if (string.IsNullOrEmpty(targetId))
-                    return (false, "Missing 'id' for clear action.", null);
-                return _driver.TypeTextByAutomationId(targetId, string.Empty)
-                    ? (true, null, null)
-                    : (false, $"Failed to clear text in '{targetId}'.", GetCandidateDiagnostic(targetId));
-
             default:
-                var validActions = new[] { "click", "type", "check", "uncheck", "select", "double_click", "right_click", "hover", "press_key", "send_keys", "wait", "assert", "assert_text", "scroll", "scroll_into_view", "clear", "paste" };
-                var closest = validActions
-                    .Select(a => new { Action = a, Distance = FuzzyLocator.CalculateSimilarity(type, a) })
-                    .OrderByDescending(x => x.Distance)
-                    .FirstOrDefault();
-
-                var suggestion = closest != null && closest.Distance > 0.4
-                    ? $" Did you mean '{closest.Action}'?"
-                    : "";
-
-                return (false, $"Unknown action type '{action.Action}'.{suggestion}", null);
+                // Self-healing for action typos: suggest the closest known action
+                // (e.g. "clik" -> "click") so the agent can fix it in one retry.
+                var suggestion = FuzzyLocator.SuggestActionType(type);
+                var hint = suggestion != null
+                    ? $" Did you mean '{suggestion}'?"
+                    : $" Valid actions: {string.Join(", ", FuzzyLocator.KnownActionTypes)}.";
+                return (false, $"Unknown action type '{action.Action}'.{hint}", null);
         }
     }
 
