@@ -153,6 +153,16 @@ public static class ReqnrollServices
                    TryFindByAutomationId(targetAutomationId, timeout);
         }
 
+        public bool ClearByAutomationId(string automationId, TimeSpan? timeout = null)
+        {
+            return TryFindByAutomationId(automationId, timeout);
+        }
+
+        public bool Scroll(string? automationId, string direction, int amount = 3)
+        {
+            return true; // Simulated scroll succeeds in the mock driver
+        }
+
         public Point GetClickablePoint(AutomationElement element, TimeSpan? timeout = null)
         {
             return new Point(0, 0); // Return a dummy point
@@ -417,5 +427,11 @@ public static class ReqnrollServices
 
         public bool IsApplicationAlive()
             => true;
+
+        public IReadOnlyList<string> GetOpenWindowTitles() => new[] { "Main Window", "Settings Dialog" };
+
+        public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null) => !string.IsNullOrEmpty(titleSubstring);
+
+        public void CloseCurrentWindow() { }
     }
 }

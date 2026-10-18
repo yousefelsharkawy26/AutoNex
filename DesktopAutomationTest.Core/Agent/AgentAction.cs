@@ -48,6 +48,20 @@ public record AgentAction
     [JsonPropertyName("timeout")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? TimeoutSeconds { get; init; }
+
+    /// <summary>
+    /// For "type": when true, clears the field before typing (single step instead of two).
+    /// </summary>
+    [JsonPropertyName("clear")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ClearFirst { get; init; }
+
+    /// <summary>
+    /// For "scroll": number of scroll ticks/lines (default 3).
+    /// </summary>
+    [JsonPropertyName("amount")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Amount { get; init; }
 }
 
 /// <summary>

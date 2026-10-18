@@ -701,6 +701,97 @@ public class FlaUIAdapter : IDriver
     }
 
     /// <summary>
+    /// Clears the current text/value of an input element. Prefers the UIA
+    /// ValuePattern (instant, no keystrokes), falls back to Ctrl+A + Delete.
+    /// </summary>
+    public bool ClearByAutomationId(string automationId, TimeSpan? timeout = null)
+    {
+        Guard.AgainstNullOrEmpty(automationId, nameof(automationId));
+
+        try
+        {
+            var element = FindElement(automationId, timeout);
+            if (element == null)
+                return false;
+
+            element.Focus();
+            Thread.Sleep(50);
+
+            if (element.Patterns.Value.IsSupported)
+            {
+                element.AsTextBox().Text = string.Empty;
+                return true;
+            }
+
+            // Fallback: select-all then delete via keyboard.
+            Keyboard.TypeSimultaneously(FlaUI.Core.VirtualKeyShort.CONTROL, FlaUI.Core.VirtualKeyShort.KEY_A);
+            Keyboard.Type(FlaUI.Core.VirtualKeyShort.DELETE);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Scrolls using the UIA ScrollPattern when supported; otherwise moves the
+    /// mouse over the target and sends wheel ticks (amount = number of ticks).
+    /// </summary>
+    public bool Scroll(string? automationId, string direction, int amount = 3)
+    {
+        try
+        {
+            AutomationElement? element = null;
+            if (!string.IsNullOrEmpty(automationId))
+            {
+                element = FindElement(automationId);
+                if (element == null)
+                    return false;
+            }
+
+            var vertical = direction is "up" or "down";
+            var forward = direction is "down" or "right";
+
+            // Preferred: UIA ScrollPattern (no focus/mouse dependency).
+            var scrollTarget = element ?? (_mainWindow as AutomationElement);
+            if (scrollTarget != null && scrollTarget.Patterns.Scroll.IsSupported)
+            {
+                var pattern = scrollTarget.Patterns.Scroll.Pattern;
+                for (var i = 0; i < Math.Max(1, amount); i++)
+                {
+                    if (vertical)
+                    {
+                        
+                        pattern.ScrollVertical(forward ? ScrollAmount.SmallScroll : -ScrollAmount.SmallScroll);
+                        
+                    }
+                    else
+                    {
+                        pattern.ScrollHorizontal(forward ? ScrollAmount.SmallScroll : -ScrollAmount.SmallScroll);
+                    }
+                }
+                return true;
+            }
+
+            // Fallback: mouse wheel over the element (or window center).
+            var rect = (element ?? _mainWindow)?.BoundingRectangle ?? System.Drawing.Rectangle.Empty;
+            if (rect.Width == 0 && rect.Height == 0)
+                return false;
+
+            Mouse.Position = new System.Drawing.Point(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
+            Thread.Sleep(50);
+            var delta = (forward ? -1 : 1) * Math.Max(1, amount) * 120;
+            Mouse.Scroll(delta);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
     /// Includes the main window AND any open dialogs/secondary windows of the app process,
     /// each labelled with its window title so agents can target them via switch_window.
@@ -933,6 +1024,82 @@ public class FlaUIAdapter : IDriver
         catch (Exception)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns titles of all open top-level windows belonging to the application process.
+    /// </summary>
+    public IReadOnlyList<string> GetOpenWindowTitles()
+    {
+        if (_application == null) return Array.Empty<string>();
+
+        var windows = _application.GetAllTopLevelWindows(_automation);
+        var titles = new List<string>();
+        foreach (var w in windows)
+        {
+            try
+            {
+                var title = w.Title;
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    titles.Add(title);
+                }
+            }
+            catch
+            {
+                // Ignore transient window errors
+            }
+        }
+        return titles;
+    }
+
+    /// <summary>
+    /// Switches the active automation context to a window matching the specified title (exact or substring).
+    /// </summary>
+    public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null)
+    {
+        if (_application == null) return false;
+        var limit = timeout ?? TimeSpan.FromSeconds(5);
+        var start = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - start < limit)
+        {
+            var windows = _application.GetAllTopLevelWindows(_automation);
+            foreach (var w in windows)
+            {
+                try
+                {
+                    if (w.Title?.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        _mainWindow = w;
+                        try { w.Focus(); } catch { }
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Window might be transitioning
+                }
+            }
+            Thread.Sleep(200);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Closes the currently active window.
+    /// </summary>
+    public void CloseCurrentWindow()
+    {
+        try
+        {
+            _mainWindow?.Close();
+        }
+        catch
+        {
+            // Ignore
         }
     }
 

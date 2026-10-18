@@ -13,6 +13,44 @@ namespace DesktopAutomationTest.Core.Agent;
 public static class FuzzyLocator
 {
     /// <summary>
+    /// The canonical set of action types understood by the batch runner.
+    /// </summary>
+    public static readonly string[] KnownActionTypes =
+    {
+        "click", "double_click", "right_click", "hover", "type", "clear", "check", "uncheck",
+        "select", "press_key", "send_keys", "scroll", "wait", "assert_text"
+    };
+
+    /// <summary>
+    /// Suggests the closest known action type for a (possibly misspelled) action name,
+    /// e.g. "clik" -> "click". Returns null when nothing is close enough.
+    /// Helps agents self-correct typos instead of burning tokens on retry loops.
+    /// </summary>
+    public static string? SuggestActionType(string action)
+    {
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            return null;
+        }
+
+        var normalized = Normalize(action);
+        string? best = null;
+        double bestScore = 0.6; // require a reasonably strong match before suggesting
+
+        foreach (var candidate in KnownActionTypes)
+        {
+            var score = CalculateSimilarity(normalized, Normalize(candidate));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
     /// Matches an approximate locator against a list of candidates.
     /// Returns the best matching AutomationId or element Name if similarity exceeds threshold.
     /// </summary>

@@ -152,9 +152,31 @@ public class AgentBatchRunner
             case "type":
                 if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for type action.", null);
+                // Optional: "clear": true empties the field before typing so agents
+                // don't need a separate step (saves tokens and avoids appended text).
+                if (action.ClearFirst == true && !_driver.ClearByAutomationId(targetId))
+                {
+                    return (false, $"Failed to clear '{targetId}' before typing.", GetCandidateDiagnostic(targetId));
+                }
                 return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
                     ? (true, null, null)
                     : (false, $"Failed to type text into '{targetId}'.", GetCandidateDiagnostic(targetId));
+
+            case "clear":
+                if (string.IsNullOrEmpty(targetId))
+                    return (false, "Missing 'id' for clear action.", null);
+                return _driver.ClearByAutomationId(targetId)
+                    ? (true, null, null)
+                    : (false, $"Failed to clear element '{targetId}'.", GetCandidateDiagnostic(targetId));
+
+            case "scroll":
+                var scrollDirection = (action.Value ?? "down").Trim().ToLowerInvariant();
+                if (scrollDirection is not ("up" or "down" or "left" or "right"))
+                    return (false, $"Invalid scroll direction '{scrollDirection}'. Use up/down/left/right.", null);
+                var scrollAmount = action.Amount ?? 3;
+                return _driver.Scroll(targetId, scrollDirection, scrollAmount)
+                    ? (true, null, null)
+                    : (false, $"Failed to scroll {scrollDirection} on '{targetId ?? "<focused window>"}'.", GetCandidateDiagnostic(targetId));
 
             case "check":
                 if (string.IsNullOrEmpty(targetId))
@@ -255,7 +277,13 @@ public class AgentBatchRunner
                 return (true, null, null);
 
             default:
-                return (false, $"Unknown action type '{action.Action}'.", null);
+                // Self-healing for action typos: suggest the closest known action
+                // (e.g. "clik" -> "click") so the agent can fix it in one retry.
+                var suggestion = FuzzyLocator.SuggestActionType(type);
+                var hint = suggestion != null
+                    ? $" Did you mean '{suggestion}'?"
+                    : $" Valid actions: {string.Join(", ", FuzzyLocator.KnownActionTypes)}.";
+                return (false, $"Unknown action type '{action.Action}'.{hint}", null);
         }
     }
 

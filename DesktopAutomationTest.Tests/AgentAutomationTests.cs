@@ -355,4 +355,244 @@ public class AgentAutomationTests
         result.Should().Contain("Screenshot saved");
         result.Should().Contain("/tmp/test.png");
     }
+
+    // ── [SESSION-REPLAY] Tests ─────────────────────────────────────────────
+
+    [Fact]
+    public void SessionRecorder_RecordStep_CapturesStepsAndSavesToJson()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.TypeTextByAutomationId("UserField", "Alice", null)).Returns(true);
+        mockDriver.Setup(d => d.ClickByAutomationId("LoginBtn", null)).Returns(true);
+
+        var recorder = new SessionRecorder(mockDriver.Object, appPath: "TestApp.exe", label: "test session");
+        var (s1, m1) = recorder.RecordStep("type", "UserField", "Alice");
+        var (s2, m2) = recorder.RecordStep("click", "LoginBtn");
+
+        s1.Should().BeTrue();
+        s2.Should().BeTrue();
+        recorder.Session.TotalSteps.Should().Be(2);
+        recorder.Session.PassedSteps.Should().Be(2);
+        recorder.Session.Label.Should().Be("test session");
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"rec_test_{Guid.NewGuid():N}.json");
+        try
+        {
+            recorder.Save(tempPath);
+            File.Exists(tempPath).Should().BeTrue();
+            var json = File.ReadAllText(tempPath);
+            json.Should().Contain("UserField");
+            json.Should().Contain("LoginBtn");
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
+    public void SessionReplayer_Replay_ExecutesStepsAndHandlesSelfHealing()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetCompactUiTree("json"))
+                  .Returns("[{\"type\":\"Button\",\"id\":\"SubmitButton\"}]");
+        mockDriver.Setup(d => d.ClickByAutomationId("SubmitButton", null)).Returns(true);
+
+        var session = new SessionRecord
+        {
+            SessionId = "test-replay",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "click", AutomationId = "submit_btn" }
+            }
+        };
+
+        var replayer = new SessionReplayer(mockDriver.Object);
+        var result = replayer.Replay(session);
+
+        result.Success.Should().BeTrue();
+        result.PassedSteps.Should().Be(1);
+        result.StepResults[0].ResolvedId.Should().Be("SubmitButton");
+    }
+
+    [Fact]
+    public void SessionReplayer_ReplayFile_FailsGracefully_WhenFileNotFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        var replayer = new SessionReplayer(mockDriver.Object);
+        var result = replayer.ReplayFile("non_existent_file.json");
+
+        result.Success.Should().BeFalse();
+        result.ToSummary().Should().Contain("not found");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ExecuteAndRecord_And_ReplaySession_WorkTogether()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.ClickByAutomationId("OkBtn", null)).Returns(true);
+        mockDriver.Setup(d => d.GetCompactUiTree("json"))
+                  .Returns("[{\"type\":\"Button\",\"id\":\"OkBtn\"}]");
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var tempPath = Path.Combine(Path.GetTempPath(), $"eng_rec_{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var planJson = "[{\"action\":\"click\",\"id\":\"OkBtn\"}]";
+            var recordResult = engine.ExecuteAndRecord(planJson, tempPath, "engine-flow");
+            recordResult.Should().Contain("Session saved");
+
+            var replayResult = engine.ReplaySession(tempPath);
+            replayResult.Should().Contain("PASSED");
+            replayResult.Should().Contain("1/1 steps");
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
+
+    // ── [MULTI-WINDOW] Tests ───────────────────────────────────────────────
+
+    [Fact]
+    public void AgentAutomationEngine_ListWindows_ReturnsFormattedList_WhenWindowsExist()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetOpenWindowTitles())
+                  .Returns(new List<string> { "Main Window", "Settings Dialog" });
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.ListWindows();
+
+        result.Should().Contain("[0] Main Window");
+        result.Should().Contain("[1] Settings Dialog");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ListWindows_ReturnsMessage_WhenNoWindows()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetOpenWindowTitles())
+                  .Returns(new List<string>());
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.ListWindows();
+
+        result.Should().Be("No open windows found.");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_SwitchWindow_ReturnsSuccess_WhenFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.SwitchToWindow("Settings", It.IsAny<TimeSpan?>()))
+                  .Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.SwitchWindow("Settings", 3);
+
+        result.Should().Contain("Switched context to window matching: 'Settings'");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_SwitchWindow_ReturnsError_WhenNotFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.SwitchToWindow("NonExistent", It.IsAny<TimeSpan?>()))
+                  .Returns(false);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+        var result = engine.SwitchWindow("NonExistent", 2);
+
+        result.Should().StartWith("Error:");
+        result.Should().Contain("NonExistent");
+    }
+
+    // ── [SESSION-TO-TEST] Generator Tests ────────────────────────────────────
+
+    [Fact]
+    public void SessionTestGenerator_GenerateCSharpTest_ProducesValidCSharpMethod()
+    {
+        var session = new SessionRecord
+        {
+            SessionId = "test-export",
+            AppPath = "C:\\Apps\\Sample.exe",
+            Label = "User Registration Flow",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "type", AutomationId = "UsernameTextBox", Value = "JohnDoe" },
+                new() { Index = 1, Action = "click", AutomationId = "RegisterButton" },
+                new() { Index = 2, Action = "assert_text", AutomationId = "SuccessLabel", Value = "Welcome" }
+            }
+        };
+
+        var code = SessionTestGenerator.GenerateCSharpTest(session);
+
+        code.Should().Contain("[Fact]");
+        code.Should().Contain("public void User_Registration_Flow()");
+        code.Should().Contain("driver.TypeTextByAutomationId(\"UsernameTextBox\", \"JohnDoe\")");
+        code.Should().Contain("driver.ClickByAutomationId(\"RegisterButton\")");
+        code.Should().Contain("text2.Should().Contain(\"Welcome\")");
+    }
+
+    [Fact]
+    public void SessionTestGenerator_GenerateGherkinScenario_ProducesValidGherkin()
+    {
+        var session = new SessionRecord
+        {
+            SessionId = "test-gherkin",
+            AppPath = "App.exe",
+            Label = "Login Feature",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "type", AutomationId = "Email", Value = "test@example.com" },
+                new() { Index = 1, Action = "click", AutomationId = "LoginBtn" },
+                new() { Index = 2, Action = "assert_text", AutomationId = "Dashboard", Value = "Overview" }
+            }
+        };
+
+        var gherkin = SessionTestGenerator.GenerateGherkinScenario(session);
+
+        gherkin.Should().Contain("Scenario: Login Feature");
+        gherkin.Should().Contain("Given the application \"App.exe\" is launched");
+        gherkin.Should().Contain("When I type \"test@example.com\" into \"Email\"");
+        gherkin.Should().Contain("When I click \"LoginBtn\"");
+        gherkin.Should().Contain("Then \"Dashboard\" should contain text \"Overview\"");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_ExportSessionAsTest_ExportsCSharpAndGherkinFromFile()
+    {
+        var mockDriver = new Mock<IDriver>();
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"gen_test_{Guid.NewGuid():N}.json");
+        var session = new SessionRecord
+        {
+            SessionId = "gen-check",
+            Label = "Test Flow",
+            Steps = new List<SessionStep>
+            {
+                new() { Index = 0, Action = "click", AutomationId = "StartBtn" }
+            }
+        };
+
+        try
+        {
+            File.WriteAllText(tempPath, System.Text.Json.JsonSerializer.Serialize(session));
+
+            var csResult = engine.ExportSessionAsTest(tempPath, "csharp");
+            csResult.Should().Contain("public class RecordedFlowTests");
+            csResult.Should().Contain("StartBtn");
+
+            var ghResult = engine.ExportSessionAsTest(tempPath, "gherkin");
+            ghResult.Should().Contain("Scenario: Test Flow");
+            ghResult.Should().Contain("When I click \"StartBtn\"");
+        }
+        finally
+        {
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
+    }
 }

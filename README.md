@@ -170,12 +170,17 @@ in a single `stryker-config` root object.
 
 ## Features
 
-### Core Library
+### Core Library & Agent Engine
 - **Driver Abstraction**: `IDriver` with FlaUI implementation
 - **Token-Efficient Agent Automation**:
   - `CompactUiTree`: filtered, semantic-only UI hierarchy dump (`[Button #Submit "Submit"]`) saving ~90% tokens
   - `AgentBatchRunner`: multi-action JSON execution pipeline in 1 tool call
+  - `FuzzyLocator`: Levenshtein self-healing locators that avoid trial-and-error retry loops
+  - `AgentStateTracker`: real-time UI diffing / delta tracking
+  - `SessionRecorder` & `SessionReplayer`: zero-token replay of captured automation sessions
   - `CompactUiElement`: lightweight JSON/Text DTO for LLM context windows
+- **Model Context Protocol (MCP) Server**: 9 tools exposing full automation to Claude, Cursor, and any MCP agent
+- **AutoNex CLI**: Global `dotnet tool` for inspection, batch plans, record, and replay
 - **Desktop Controls**: CheckBox, ComboBox (text/index), RadioButton automation
 - **Advanced Keyboard & Mouse**: DoubleClick, RightClick, Hover, PressKey, SendKeys, Drag & Drop
 - **Base Test Fixture**: shared setup/teardown
