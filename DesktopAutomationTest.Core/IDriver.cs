@@ -208,6 +208,13 @@ public interface IDriver : IDisposable
     /// </summary>
     bool IsApplicationAlive();
 
+    /// <summary>
+    /// Returns the OS process of the automated (launched or attached) application,
+    /// or null when no process is associated with this driver yet.
+    /// Used by CLI session persistence to record the pid for later attach/reuse.
+    /// </summary>
+    System.Diagnostics.Process? GetOwnProcess();
+
     // ── Window & Multi-Window Management ──────────────────────────────────────
 
     /// <summary>
@@ -227,4 +234,19 @@ public interface IDriver : IDisposable
     /// Closes the currently active window. If it is the last window, the application terminates.
     /// </summary>
     void CloseCurrentWindow();
+
+    // ── Token-optimized inspection helpers ────────────────────────────────────
+
+    /// <summary>
+    /// Returns the interactive elements as a structured list (used for pagination,
+    /// state hashing and self-healing candidate matching without JSON round-trips).
+    /// </summary>
+    IReadOnlyList<DesktopAutomationTest.Core.Agent.CompactUiElement> GetInteractiveElements();
+
+    /// <summary>
+    /// Serializes a pre-extracted element list into the compact text/json format
+    /// used by <see cref="GetCompactUiTree"/>. Lets callers apply filtering,
+    /// pagination and diffing on top of <see cref="GetInteractiveElements"/>.
+    /// </summary>
+    string SerializeElements(IReadOnlyList<DesktopAutomationTest.Core.Agent.CompactUiElement> elements, string format = "text");
 }
