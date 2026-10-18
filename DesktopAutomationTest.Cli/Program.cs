@@ -15,6 +15,9 @@ namespace DesktopAutomationTest.Cli;
 ///   autonex wait     --app &lt;path&gt; --id &lt;automationId&gt; [--timeout &lt;seconds&gt;]
 ///   autonex text     --app &lt;path&gt; --id &lt;automationId&gt;
 ///   autonex shot     --app &lt;path&gt; [--out &lt;file.png&gt;]
+///   autonex record  --app <path> --plan <file.json> [--out <session.json>] [--label <text>]
+///   autonex replay  --app <path> --session <file.json>
+///   autonex export  --session <file.json> [--format csharp|gherkin] [--out <file>]
 ///   autonex help
 /// </summary>
 internal class Program
@@ -39,8 +42,14 @@ internal class Program
             "wait"    => RunWait(parsed),
             "text"    => RunText(parsed),
             "shot"    => RunShot(parsed),
+<<<<<<< HEAD
             "windows" => RunWindows(parsed),
             "switch"  => RunSwitchWindow(parsed),
+=======
+            "record"  => RunRecord(parsed),
+            "replay"  => RunReplay(parsed),
+            "export"  => RunExport(parsed),
+>>>>>>> f70b1d2
             _         => UnknownCommand(command)
         };
     }
@@ -133,6 +142,7 @@ internal class Program
         return result.StartsWith("Error:") ? 1 : 0;
     }
 
+<<<<<<< HEAD
     static int RunAttach(ParsedArgs p)
     {
         var pidStr = p.Get("pid");
@@ -183,6 +193,105 @@ internal class Program
         return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
     }
 
+=======
+
+    static int RunRecord(ParsedArgs p)
+    {
+        RequireArg(p, "app");
+        RequireArg(p, "plan");
+
+        var planFile = p.Get("plan")!;
+        if (!File.Exists(planFile))
+        {
+            Console.Error.WriteLine($"Error: plan file not found: {planFile}");
+            return 1;
+        }
+
+        var planJson    = File.ReadAllText(planFile);
+        var sessionPath = p.Get("out");
+        var label       = p.Get("label");
+
+        using var driver = CreateAndLaunch(p);
+        var engine = new AgentAutomationEngine(driver);
+
+        var result = engine.ExecuteAndRecord(planJson, sessionPath, label);
+        Console.WriteLine(result);
+        return result.Contains("FAILED") ? 1 : 0;
+    }
+
+    static int RunReplay(ParsedArgs p)
+    {
+        RequireArg(p, "app");
+        RequireArg(p, "session");
+
+        var sessionFile = p.Get("session")!;
+        if (!File.Exists(sessionFile))
+        {
+            Console.Error.WriteLine($"Error: session file not found: {sessionFile}");
+            return 1;
+        }
+
+        using var driver = CreateAndLaunch(p);
+        var engine = new AgentAutomationEngine(driver);
+
+        var result = engine.ReplaySession(sessionFile);
+        Console.WriteLine(result);
+        return result.Contains("FAILED") || result.StartsWith("error") ? 1 : 0;
+    }
+
+
+    static int RunExport(ParsedArgs p)
+    {
+        RequireArg(p, "session");
+
+        var sessionFile = p.Get("session")!;
+        if (!File.Exists(sessionFile))
+        {
+            Console.Error.WriteLine($"Error: session file not found: {sessionFile}");
+            return 1;
+        }
+
+        var format  = p.Get("format", "csharp") ?? "csharp";
+        var outFile = p.Get("out");
+
+        // We don't need a live app launched just to export code
+        string code;
+        try
+        {
+            var json = File.ReadAllText(sessionFile);
+            var session = System.Text.Json.JsonSerializer.Deserialize<SessionRecord>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (session == null)
+            {
+                Console.Error.WriteLine("Error: failed to parse session file.");
+                return 1;
+            }
+
+            code = string.Equals(format, "gherkin", StringComparison.OrdinalIgnoreCase)
+                ? SessionTestGenerator.GenerateGherkinScenario(session)
+                : SessionTestGenerator.GenerateCSharpFixture(session);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+
+        if (!string.IsNullOrEmpty(outFile))
+        {
+            File.WriteAllText(outFile, code);
+            Console.WriteLine($"✓ Exported {format} test to: {outFile}");
+        }
+        else
+        {
+            Console.WriteLine(code);
+        }
+
+        return 0;
+    }
+
+>>>>>>> f70b1d2
     static int UnknownCommand(string cmd)
     {
         Console.Error.WriteLine($"Error: Unknown command '{cmd}'. Run 'autonex help' for usage.");
@@ -200,7 +309,16 @@ internal class Program
 
     static IDriver CreateAndLaunch(ParsedArgs p)
     {
+<<<<<<< HEAD
         var driver = CreateDriverForSession(p, launchIfNeeded: false);
+=======
+        var appPath = p.Get("app")!;
+        var appArgs = p.Get("args");
+        var driverType = p.Get("driver", "flaui") ?? "flaui";
+
+        var driver = DriverFactory.CreateDriver(driverType);
+        driver.Initialize(appPath, appArgs);
+>>>>>>> f70b1d2
         return driver;
     }
 
@@ -352,6 +470,8 @@ internal class Program
 
             COMMANDS:
               inspect   Dump interactive UI elements (compact, token-minimal)
+              record    Execute a plan AND save it as a replayable session JSON
+              replay    Replay a recorded session — ZERO LLM tokens
               run       Execute a multi-step automation plan from a JSON file
               launch    Launch an application and keep it open
               wait      Wait until an element appears (with timeout)
@@ -362,11 +482,14 @@ internal class Program
             OPTIONS:
               --app <path>       Path to the application .exe  (required for most commands)
               --args <args>      Command-line arguments for the application
+              --driver <type>    Driver engine: flaui (default, Windows) or avalonia (cross-platform)
               --format <fmt>     Output format: text (default) or json  [inspect]
               --plan <file>      Path to the JSON plan file              [run]
               --id <id>          Automation ID of the target element     [wait, text]
               --timeout <secs>   Wait timeout in seconds (default: 10)  [wait]
-              --out <file>       Output path for screenshot PNG          [shot]
+              --out <file>       Output path for screenshot PNG / session JSON [shot, record]
+              --session <file>   Path to session JSON file                  [replay, export]
+              --label <text>     Label for the recorded session             [record]
 
             EXAMPLES:
               autonex inspect --app "C:\MyApp\MyApp.exe"

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Text.Json;
 
 namespace DesktopAutomationTest.Core.Agent;
@@ -26,6 +27,8 @@ public record AgentOperationResult
 /// Minimizes LLM tool overhead by exposing token-optimized single-point operations:
 /// - Dump UI with minimal token footprint
 /// - Execute multi-step action plans in 1 call with self-healing and delta tracking
+/// - Record sessions to JSON for zero-token replay
+/// - Replay recorded sessions (zero LLM cost)
 /// - Assert UI state efficiently
 /// </summary>
 public class AgentAutomationEngine
@@ -77,8 +80,6 @@ public class AgentAutomationEngine
     /// Applies fuzzy self-healing before waiting so approximate ids still resolve.
     /// Returns a human-readable result string suitable for MCP tool responses.
     /// </summary>
-    /// <param name="automationId">Automation ID of the element to wait for.</param>
-    /// <param name="timeoutSeconds">Max seconds to wait (default 10).</param>
     public string WaitForElement(string automationId, int timeoutSeconds = 10)
     {
         var resolved = ResolveWithHealing(automationId);
@@ -109,7 +110,6 @@ public class AgentAutomationEngine
     /// Takes a screenshot of the current screen and saves it to the specified path.
     /// Returns the saved file path on success, or an error message.
     /// </summary>
-    /// <param name="outputPath">File path where the PNG will be saved. Defaults to a timestamped file in the temp folder.</param>
     public string TakeScreenshot(string? outputPath = null)
     {
         var result = CaptureScreenshot(outputPath, includeImage: false);
@@ -207,6 +207,8 @@ public class AgentAutomationEngine
             : $"Error: no application window matches '{titleContains}'.";
     }
 
+    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
+
     /// <summary>
     /// Attaches the driver to an already-running process (by pid or exe name) instead of launching a new instance.
     /// </summary>
@@ -263,5 +265,124 @@ public class AgentAutomationEngine
         }
 
         return automationId;
+    }
+
+    // ── [SESSION-REPLAY] Record & Replay ──────────────────────────────────────
+
+    /// <summary>
+    /// Executes a JSON plan AND records every step to a session file.
+    /// Useful when the agent runs a plan for the first time and wants to persist it
+    /// for zero-token replay in future runs.
+    /// </summary>
+    /// <param name="jsonActions">JSON array of actions (same format as ExecutePlan).</param>
+    /// <param name="sessionFilePath">Path to save the session JSON. Auto-generated if null.</param>
+    /// <param name="label">Optional human-readable label for this session.</param>
+    /// <returns>Compact summary string including the session file path.</returns>
+    public string ExecuteAndRecord(string jsonActions, string? sessionFilePath = null, string? label = null)
+    {
+        sessionFilePath ??= Path.Combine(
+            Path.GetTempPath(),
+            $"autonex_session_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json");
+
+        // Parse the actions
+        var actions = JsonSerializer.Deserialize<System.Collections.Generic.List<AgentAction>>(jsonActions,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? new();
+
+        var recorder = new SessionRecorder(_driver, label: label);
+
+        foreach (var action in actions)
+        {
+            recorder.RecordStep(action.Action, action.AutomationId, action.Value);
+        }
+
+        recorder.Save(sessionFilePath);
+
+        var summary = recorder.Session.ToSummary();
+        return $"{summary}\nSession saved: {sessionFilePath}";
+    }
+
+    /// <summary>
+    /// Replays a previously recorded session JSON file.
+    /// Zero LLM tokens consumed — reads file and drives UI directly.
+    /// Uses FuzzyLocator for self-healing if element IDs changed slightly.
+    /// </summary>
+    /// <param name="sessionFilePath">Path to the session JSON file.</param>
+    /// <returns>Compact result summary.</returns>
+    public string ReplaySession(string sessionFilePath)
+    {
+        var replayer = new SessionReplayer(_driver);
+        var result   = replayer.ReplayFile(sessionFilePath);
+        return result.ToSummary();
+    }
+
+    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
+
+    /// <summary>
+    /// Lists titles of all currently open top-level windows belonging to the application.
+    /// </summary>
+    public string ListWindows()
+    {
+        var titles = _driver.GetOpenWindowTitles();
+        if (titles.Count == 0) return "No open windows found.";
+        return string.Join("\n", titles.Select((t, i) => $"[{i}] {t}"));
+    }
+
+    /// <summary>
+    /// Switches automation context to a window by title or substring.
+    /// </summary>
+    public string SwitchWindow(string titleSubstring, int timeoutSeconds = 5)
+    {
+        var ok = _driver.SwitchToWindow(titleSubstring, TimeSpan.FromSeconds(timeoutSeconds));
+        return ok
+            ? $"Switched context to window matching: '{titleSubstring}'"
+            : $"Error: window matching '{titleSubstring}' not found after {timeoutSeconds}s.";
+    }
+
+    /// <summary>
+    /// Closes the currently active window.
+    /// </summary>
+    public string CloseCurrentWindow()
+    {
+        _driver.CloseCurrentWindow();
+        return "Current window closed.";
+    }
+
+    // ── [SESSION-TO-TEST] Export Session to C# or Gherkin ─────────────────────
+
+    /// <summary>
+    /// Loads a recorded session JSON and exports it as C# xUnit code or Gherkin BDD scenario.
+    /// </summary>
+    /// <param name="sessionFilePath">Path to the session JSON file.</param>
+    /// <param name="format">Format: "csharp" (default) or "gherkin".</param>
+    public string ExportSessionAsTest(string sessionFilePath, string format = "csharp")
+    {
+        if (!File.Exists(sessionFilePath))
+        {
+            return $"Error: session file not found: {sessionFilePath}";
+        }
+
+        try
+        {
+            var json = File.ReadAllText(sessionFilePath);
+            var session = JsonSerializer.Deserialize<SessionRecord>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (session == null)
+            {
+                return "Error: failed to deserialize session file.";
+            }
+
+            if (string.Equals(format, "gherkin", StringComparison.OrdinalIgnoreCase))
+            {
+                return SessionTestGenerator.GenerateGherkinScenario(session);
+            }
+
+            return SessionTestGenerator.GenerateCSharpFixture(session);
+        }
+        catch (Exception ex)
+        {
+            return $"Error exporting test: {ex.Message}";
+        }
     }
 }

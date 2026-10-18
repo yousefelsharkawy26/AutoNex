@@ -417,5 +417,11 @@ public static class ReqnrollServices
 
         public bool IsApplicationAlive()
             => true;
+
+        public IReadOnlyList<string> GetOpenWindowTitles() => new[] { "Main Window", "Settings Dialog" };
+
+        public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null) => !string.IsNullOrEmpty(titleSubstring);
+
+        public void CloseCurrentWindow() { }
     }
 }

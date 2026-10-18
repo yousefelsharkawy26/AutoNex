@@ -18,9 +18,17 @@ public static class DriverFactory
     }
 
     /// <summary>
+    /// Creates an Avalonia-based cross-platform driver instance.
+    /// </summary>
+    public static IDriver CreateAvaloniaDriver()
+    {
+        return new AvaloniaDriver();
+    }
+
+    /// <summary>
     /// Creates a driver instance based on the specified type.
     /// </summary>
-    /// <param name="driverType">The type of driver to create.</param>
+    /// <param name="driverType">The type of driver to create ("flaui" or "avalonia").</param>
     /// <returns>A new driver instance.</returns>
     /// <exception cref="ArgumentException">Thrown when an unsupported driver type is specified.</exception>
     public static IDriver CreateDriver(string driverType)
@@ -29,6 +37,7 @@ public static class DriverFactory
         return driverType.ToLowerInvariant() switch
         {
             "flaui" => new FlaUIAdapter(),
+            "avalonia" => new AvaloniaDriver(),
             _ => throw new ArgumentException($"Unsupported driver type: {driverType}", nameof(driverType))
         };
     }

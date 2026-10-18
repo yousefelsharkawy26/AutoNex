@@ -58,8 +58,13 @@ public class Program
                     await SendResponseAsync(writer, id, new
                     {
                         protocolVersion = "2024-11-05",
+<<<<<<< HEAD
                         capabilities = new { tools = new { listChanged = false } },
                         serverInfo = new { name = "autonex-desktop-mcp", version = "1.2.0" }
+=======
+                        capabilities = new { tools = new { } },
+                        serverInfo = new { name = "autonex-desktop-mcp", version = "1.5.0" }
+>>>>>>> f70b1d2
                     });
                 }
                 else if (method == "ping")
@@ -170,7 +175,8 @@ public class Program
                     properties = new
                     {
                         path = new { type = "string", description = "Path to the application executable." },
-                        arguments = new { type = "string", description = "Optional command line arguments." }
+                        arguments = new { type = "string", description = "Optional command line arguments." },
+                        driver = new { type = "string", @enum = new[] { "flaui", "avalonia" }, description = "Driver type: 'flaui' (default for Windows UIA3) or 'avalonia' (cross-platform Linux/macOS/Windows)." }
                     },
                     required = new[] { "path" }
                 }
@@ -251,39 +257,103 @@ public class Program
             },
             new
             {
+<<<<<<< HEAD
                 name = "attach_to_process",
                 description = "Attaches to an ALREADY-RUNNING application process (by process_id or process_name) instead of launching a new instance. Enables session reuse so repeated CLI/MCP calls do not relaunch the app.",
+=======
+                name = "record_session",
+                description = "Executes a multi-step plan AND records every action + result to a JSON session file for ZERO-TOKEN future replay. Use this the first time you automate a flow.",
+>>>>>>> f70b1d2
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
+<<<<<<< HEAD
                         process_id = new { type = "integer", description = "OS process id to attach to." },
                         process_name = new { type = "string", description = "Executable name (with or without .exe) of a running process to attach to. Used when process_id is absent." }
                     }
+=======
+                        plan_json = new
+                        {
+                            type = "string",
+                            description = "JSON array of actions (same format as execute_plan)."
+                        },
+                        session_path = new { type = "string", description = "Optional output path for the session JSON file. Auto-generated in temp folder if omitted." },
+                        label = new { type = "string", description = "Optional human-readable label for this session (e.g. 'login flow')." }
+                    },
+                    required = new[] { "plan_json" }
+>>>>>>> f70b1d2
                 }
             },
             new
             {
+<<<<<<< HEAD
                 name = "list_windows",
                 description = "Lists all top-level windows of the automated application, including modal dialogs (MessageBox, file dialogs, secondary windows).",
+=======
+                name = "replay_session",
+                description = "Replays a previously recorded session JSON file with ZERO token cost — no LLM needed. Uses self-healing locators to tolerate minor UI changes.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        session_path = new { type = "string", description = "Path to the session JSON file produced by record_session." }
+                    },
+                    required = new[] { "session_path" }
+                }
+            },
+                        new
+            {
+                name = "list_windows",
+                description = "Returns a list of all currently open top-level windows for the application. Useful for multi-window flows and dialog detection.",
+>>>>>>> f70b1d2
                 inputSchema = new { type = "object", properties = new { } }
             },
             new
             {
                 name = "switch_window",
+<<<<<<< HEAD
                 description = "Switches automation context to the application window whose title contains the given text (case-insensitive). Use after a dialog opens to bring it to the foreground and target its elements.",
+=======
+                description = "Switches the active UI automation context to a window matching the specified title (exact or partial substring).",
+>>>>>>> f70b1d2
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
+<<<<<<< HEAD
                         title = new { type = "string", description = "Substring of the target window title (e.g. Save As, Confirm)." }
+=======
+                        title = new { type = "string", description = "Title or substring of the window to focus and automate." },
+                        timeout_seconds = new { type = "integer", description = "Optional timeout in seconds. Default: 5." }
+>>>>>>> f70b1d2
                     },
                     required = new[] { "title" }
                 }
             },
+<<<<<<< HEAD
             new
+=======
+                        new
+            {
+                name = "export_session_as_test",
+                description = "Converts a recorded session JSON file into executable C# xUnit test code or a Gherkin/Reqnroll feature scenario.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        session_path = new { type = "string", description = "Path to the recorded session JSON file." },
+                        format = new { type = "string", @enum = new[] { "csharp", "gherkin" }, description = "Output format: 'csharp' (default) or 'gherkin'." }
+                    },
+                    required = new[] { "session_path" }
+                }
+            },
+                        new
+>>>>>>> f70b1d2
             {
                 name = "close_application",
                 description = "Closes the running application and frees automation resources.",
@@ -307,10 +377,19 @@ public class Program
                         return ToolCallOutcome.Fail("Error: Application path is required.");
                     }
 
+<<<<<<< HEAD
                     _driver?.Dispose();
                     _driver = DriverFactory.CreateFlauiDriver();
                     _driver.Initialize(path, args);
                     _engine = new AgentAutomationEngine(_driver);
+=======
+                var driverType = arguments.TryGetProperty("driver", out var dt) ? dt.GetString() ?? "flaui" : "flaui";
+
+                _driver?.Dispose();
+                _driver = DriverFactory.CreateDriver(driverType);
+                _driver.Initialize(path, args);
+                _engine = new AgentAutomationEngine(_driver);
+>>>>>>> f70b1d2
 
                     return ToolCallOutcome.Ok($"Application launched successfully: {path}");
 
@@ -389,11 +468,83 @@ public class Program
                         ? ToolCallOutcome.Fail(shotResult.Text, shotResult.ImagePng)
                         : ToolCallOutcome.Ok(shotResult.Text, shotResult.ImagePng);
 
+<<<<<<< HEAD
                 case "attach_to_process":
                     var pidEl = arguments.TryGetProperty("process_id", out var pidProp) && pidProp.ValueKind == JsonValueKind.Number
                         ? (int?)pidProp.GetInt32()
                         : null;
                     var procName = arguments.TryGetProperty("process_name", out var pnProp) ? pnProp.GetString() : null;
+=======
+            case "record_session":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var recPlan = arguments.GetProperty("plan_json").GetString();
+                if (string.IsNullOrEmpty(recPlan))
+                {
+                    return "Error: plan_json is required.";
+                }
+
+                var recPath  = arguments.TryGetProperty("session_path", out var rp) ? rp.GetString() : null;
+                var recLabel = arguments.TryGetProperty("label", out var rl) ? rl.GetString() : null;
+                return _engine.ExecuteAndRecord(recPlan, recPath, recLabel);
+
+            case "replay_session":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var replayPath = arguments.TryGetProperty("session_path", out var sp) ? sp.GetString() : null;
+                if (string.IsNullOrEmpty(replayPath))
+                {
+                    return "Error: session_path is required.";
+                }
+
+                return _engine.ReplaySession(replayPath);
+
+            case "list_windows":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+                return _engine.ListWindows();
+
+            case "switch_window":
+                if (_engine == null)
+                {
+                    return "Error: No application is currently launched. Use launch_application first.";
+                }
+
+                var winTitle = arguments.GetProperty("title").GetString();
+                if (string.IsNullOrEmpty(winTitle))
+                {
+                    return "Error: title is required.";
+                }
+
+                var winTimeout = arguments.TryGetProperty("timeout_seconds", out var wt) ? wt.GetInt32() : 5;
+                return _engine.SwitchWindow(winTitle, winTimeout);
+
+            case "export_session_as_test":
+                var expSessionPath = arguments.GetProperty("session_path").GetString();
+                if (string.IsNullOrEmpty(expSessionPath))
+                {
+                    return "Error: session_path is required.";
+                }
+
+                var expFormat = arguments.TryGetProperty("format", out var ef) ? ef.GetString() ?? "csharp" : "csharp";
+                // Engine or standalone generator can be called directly
+                var engineToUse = _engine ?? new AgentAutomationEngine(DriverFactory.CreateFlauiDriver());
+                return engineToUse.ExportSessionAsTest(expSessionPath, expFormat);
+
+            case "close_application":
+                _driver?.Dispose();
+                _driver = null;
+                _engine = null;
+                return "Application closed successfully.";
+>>>>>>> f70b1d2
 
                     if (pidEl == null && string.IsNullOrEmpty(procName))
                     {
