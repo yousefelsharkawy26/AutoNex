@@ -595,4 +595,180 @@ public class AgentAutomationTests
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }
     }
+
+    // ── [P0-SCROLL-AND-FUZZY-ACTION] Tests ──────────────────────────────────
+
+    [Fact]
+    public void AgentBatchRunner_FuzzyActionName_SuggestsCorrection_OnTypo()
+    {
+        var mockDriver = new Mock<IDriver>();
+        var runner = new AgentBatchRunner(mockDriver.Object);
+
+        var actions = new List<AgentAction>
+        {
+            new() { Action = "clik", AutomationId = "SubmitButton" }
+        };
+
+        var result = runner.Execute(actions);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("Did you mean 'click'?");
+    }
+
+    [Fact]
+    public void AgentBatchRunner_ScrollAndScrollIntoView_ExecutesSuccessfully()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.Scroll("down", "ContainerList")).Returns(true);
+        mockDriver.Setup(d => d.ScrollIntoView("BottomItem")).Returns(true);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var actions = new List<AgentAction>
+        {
+            new() { Action = "scroll", AutomationId = "ContainerList", Direction = "down" },
+            new() { Action = "scroll_into_view", AutomationId = "BottomItem" }
+        };
+
+        var result = runner.Execute(actions);
+
+        result.Success.Should().BeTrue();
+        result.ExecutedStepsCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void AgentBatchRunner_ClearAction_ClearsTextSuccessfully()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.TypeTextByAutomationId("SearchBox", string.Empty, null)).Returns(true);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var actions = new List<AgentAction>
+        {
+            new() { Action = "clear", AutomationId = "SearchBox" }
+        };
+
+        var result = runner.Execute(actions);
+
+        result.Success.Should().BeTrue();
+        result.ExecutedStepsCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void CompactUiTree_SummarizeRepetitiveElements_CompressesLargeList()
+    {
+        var items = new List<CompactUiElement>();
+        for (int i = 1; i <= 20; i++)
+        {
+            items.Add(new CompactUiElement { Type = "ListItem", AutomationId = $"Item_{i}", Name = $"Row {i}" });
+        }
+
+        var summarized = CompactUiTree.SummarizeRepetitiveElements(items, maxRepeated: 3);
+
+        summarized.Count.Should().Be(4); // 3 items + 1 summary item
+        summarized.Last().Name.Should().Contain("17 more ListItem items omitted");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_InspectScreen_DiffOnly_CachesAndReturnsNoChanges()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.GetCompactUiTree("text", -1, null))
+                  .Returns("[Button #Submit \"Submit\"]\n[Edit #Name]");
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+
+        var first = engine.InspectScreen("text", diffOnly: false);
+        first.Should().Contain("Submit");
+
+        var second = engine.InspectScreen("text", diffOnly: true);
+        second.Should().Be("[No UI changes since last inspect]");
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_InspectScreen_DiffOnly_ReturnsNewTree_WhenChanged()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.SetupSequence(d => d.GetCompactUiTree("text", -1, null))
+                  .Returns("[Button #Submit]")
+                  .Returns("[Button #Submit]\n[Text #SuccessMessage \"Saved\"]");
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+
+        engine.InspectScreen("text", diffOnly: false);
+        var second = engine.InspectScreen("text", diffOnly: true);
+
+        second.Should().Contain("SuccessMessage");
+    }
+
+    [Fact]
+    public void AgentBatchRunner_DryRun_ValidatesLocators_WithoutCallingClickOrType()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.TryFindByAutomationId("SubmitBtn", It.IsAny<TimeSpan?>())).Returns(true);
+        mockDriver.Setup(d => d.TryFindByAutomationId("EmailInput", It.IsAny<TimeSpan?>())).Returns(true);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var plan = @"[
+            { ""action"": ""type"", ""id"": ""EmailInput"", ""value"": ""test@example.com"" },
+            { ""action"": ""click"", ""id"": ""SubmitBtn"" }
+        ]";
+
+        var result = runner.ExecuteJson(plan, dryRun: true);
+
+        result.Success.Should().BeTrue();
+        result.ExecutedStepsCount.Should().Be(2);
+        result.Delta.Should().Contain("Dry-run: all locators and actions validated successfully");
+        mockDriver.Verify(d => d.ClickByAutomationId(It.IsAny<string>(), It.IsAny<TimeSpan?>()), Times.Never);
+        mockDriver.Verify(d => d.TypeTextByAutomationId(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>()), Times.Never);
+    }
+
+    [Fact]
+    public void AgentBatchRunner_DryRun_Fails_WhenLocatorNotFound()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.TryFindByAutomationId("MissingBtn", It.IsAny<TimeSpan?>())).Returns(false);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var plan = @"[{ ""action"": ""click"", ""id"": ""MissingBtn"" }]";
+
+        var result = runner.ExecuteJson(plan, dryRun: true);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("Element 'MissingBtn' not found on screen");
+    }
+
+    [Fact]
+    public void AgentBatchRunner_MultiAssert_And_Paste_ExecuteSuccessfully()
+    {
+        var mockDriver = new Mock<IDriver>();
+        string? statusText = "Operation succeeded";
+        mockDriver.Setup(d => d.TryGetTextByAutomationId("StatusLabel", out statusText, It.IsAny<TimeSpan?>())).Returns(true);
+        mockDriver.Setup(d => d.TypeTextByAutomationId("NotesArea", "Sample notes content", null)).Returns(true);
+
+        var runner = new AgentBatchRunner(mockDriver.Object);
+        var plan = @"[
+            { ""action"": ""paste"", ""id"": ""NotesArea"", ""value"": ""Sample notes content"", ""clear"": true },
+            { ""action"": ""assert"", ""id"": ""StatusLabel"", ""contains"": ""succeeded"" }
+        ]";
+
+        var result = runner.ExecuteJson(plan);
+
+        result.Success.Should().BeTrue();
+        result.ExecutedStepsCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void AgentAutomationEngine_Click_Type_Clear_Helpers_WorkAsExpected()
+    {
+        var mockDriver = new Mock<IDriver>();
+        mockDriver.Setup(d => d.ClickByAutomationId("MyButton", null)).Returns(true);
+        mockDriver.Setup(d => d.TypeTextByAutomationId("MyField", "Hello", null)).Returns(true);
+        mockDriver.Setup(d => d.TypeTextByAutomationId("MyField", string.Empty, null)).Returns(true);
+
+        var engine = new AgentAutomationEngine(mockDriver.Object);
+
+        engine.Click("MyButton").Should().Contain("Clicked element 'MyButton'");
+        engine.Type("MyField", "Hello").Should().Contain("Typed text into element 'MyField'");
+        engine.Clear("MyField").Should().Contain("Cleared text in element 'MyField'");
+    }
 }

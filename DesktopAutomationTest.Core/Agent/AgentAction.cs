@@ -51,10 +51,18 @@ public record AgentAction
 
     /// <summary>
     /// For "type": when true, clears the field before typing (single step instead of two).
+    /// Alias of "clear" — both are accepted for agent convenience.
+    /// </summary>
+    [JsonPropertyName("clear_first")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ClearFirst { get; init; }
+
+    /// <summary>
+    /// Whether to clear existing text before typing (defaults to false).
     /// </summary>
     [JsonPropertyName("clear")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? ClearFirst { get; init; }
+    public bool? Clear { get; init; }
 
     /// <summary>
     /// For "scroll": number of scroll ticks/lines (default 3).
@@ -62,6 +70,13 @@ public record AgentAction
     [JsonPropertyName("amount")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Amount { get; init; }
+
+    /// <summary>
+    /// Direction for scroll action: "down" (default), "up", "left", "right".
+    /// </summary>
+    [JsonPropertyName("direction")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Direction { get; init; }
 }
 
 /// <summary>

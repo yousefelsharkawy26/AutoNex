@@ -162,18 +162,13 @@ public interface IDriver : IDisposable
     bool ClearByAutomationId(string automationId, TimeSpan? timeout = null);
 
     /// <summary>
-    /// Scrolls a container or element. <paramref name="direction"/> is one of
-    /// "up", "down", "left", "right". If <paramref name="automationId"/> is null,
-    /// scrolls the currently focused window.
-    /// </summary>
-    bool Scroll(string? automationId, string direction, int amount = 3);
-
-    /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
     /// Includes all application windows (main window + open dialogs).
     /// </summary>
     /// <param name="format">Format of the dump: "text" (default, minimal tokens) or "json".</param>
-    string GetCompactUiTree(string format = "text");
+    /// <param name="maxDepth">Optional maximum hierarchy traversal depth.</param>
+    /// <param name="containerId">Optional container AutomationId to filter children.</param>
+    string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null);
 
     // ── [FEATURE-WINDOWS] Multi-window / dialog support ───────────────────────
 
@@ -235,18 +230,20 @@ public interface IDriver : IDisposable
     /// </summary>
     void CloseCurrentWindow();
 
-    // ── Token-optimized inspection helpers ────────────────────────────────────
+    // ── Scrolling & Accessibility Navigation ──────────────────────────────────
 
     /// <summary>
-    /// Returns the interactive elements as a structured list (used for pagination,
-    /// state hashing and self-healing candidate matching without JSON round-trips).
+    /// Scrolls the element or active window in the specified direction ("up", "down", "left", "right").
     /// </summary>
-    IReadOnlyList<DesktopAutomationTest.Core.Agent.CompactUiElement> GetInteractiveElements();
+    /// <param name="direction">Direction to scroll: "down" (default), "up", "left", "right".</param>
+    /// <param name="automationId">Optional container ID. If null, scrolls active window.</param>
+    /// <returns>True if scroll was executed; otherwise false.</returns>
+    bool Scroll(string direction = "down", string? automationId = null);
 
     /// <summary>
-    /// Serializes a pre-extracted element list into the compact text/json format
-    /// used by <see cref="GetCompactUiTree"/>. Lets callers apply filtering,
-    /// pagination and diffing on top of <see cref="GetInteractiveElements"/>.
+    /// Scrolls a container until the target element is visible on screen.
     /// </summary>
-    string SerializeElements(IReadOnlyList<DesktopAutomationTest.Core.Agent.CompactUiElement> elements, string format = "text");
+    /// <param name="targetAutomationId">Automation ID of the element to scroll into view.</param>
+    /// <returns>True if element was brought into view; otherwise false.</returns>
+    bool ScrollIntoView(string targetAutomationId);
 }

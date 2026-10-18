@@ -42,24 +42,36 @@ public class AgentAutomationEngine
         _batchRunner = new AgentBatchRunner(_driver);
     }
 
+    private string? _lastInspectTree;
+
     /// <summary>
     /// Gets a token-minimized representation of the UI interactive elements.
     /// Recommended to call at the start of a test session.
     /// Format: "text" (minimal tokens, e.g. [Button #Submit "Submit"]) or "json".
+    /// When diffOnly is true, returns "[No UI changes since last inspect]" if UI is identical to last call.
     /// </summary>
-    public string InspectScreen(string format = "text")
+    public string InspectScreen(string format = "text", bool diffOnly = false, int maxDepth = -1, string? containerId = null)
     {
-        return _driver.GetCompactUiTree(format);
+        var currentTree = _driver.GetCompactUiTree(format, maxDepth, containerId);
+
+        if (diffOnly && _lastInspectTree != null && string.Equals(_lastInspectTree, currentTree, StringComparison.Ordinal))
+        {
+            return "[No UI changes since last inspect]";
+        }
+
+        _lastInspectTree = currentTree;
+        return currentTree;
     }
 
     /// <summary>
     /// Runs a batch of actions specified as a compact JSON string.
-    /// Supports: click, type, check, uncheck, select, hover, double_click, right_click, press_key, send_keys, wait, assert_text.
+    /// Supports: click, type, paste, check, uncheck, select, hover, double_click, right_click, press_key, send_keys, wait, assert, assert_text, scroll, scroll_into_view, clear.
+    /// When dryRun is true, validates all actions and locators without modifying UI state.
     /// Auto-heals misspelled IDs for ALL locator-based actions and returns a single-line summary with UI state delta.
     /// </summary>
-    public string ExecutePlan(string jsonActions)
+    public string ExecutePlan(string jsonActions, bool dryRun = false)
     {
-        var result = _batchRunner.ExecuteJson(jsonActions);
+        var result = _batchRunner.ExecuteJson(jsonActions, dryRun);
         return result.ToCompactSummary();
     }
 
@@ -104,6 +116,48 @@ public class AgentAutomationEngine
         if (_driver.TryGetTextByAutomationId(resolved, out var text))
             return text ?? string.Empty;
         return $"Error: element '{automationId}' not found.";
+    }
+
+    /// <summary>
+    /// Clicks an element by automation ID with self-healing.
+    /// </summary>
+    public string Click(string automationId)
+    {
+        var resolved = ResolveWithHealing(automationId);
+        var ok = _driver.ClickByAutomationId(resolved);
+        return ok
+            ? (resolved != automationId
+                ? $"Clicked element '{resolved}' (self-healed from '{automationId}')."
+                : $"Clicked element '{resolved}'.")
+            : $"Error: failed to click element '{automationId}'. Element not found or disabled.";
+    }
+
+    /// <summary>
+    /// Types text into an element by automation ID with self-healing.
+    /// </summary>
+    public string Type(string automationId, string text)
+    {
+        var resolved = ResolveWithHealing(automationId);
+        var ok = _driver.TypeTextByAutomationId(resolved, text);
+        return ok
+            ? (resolved != automationId
+                ? $"Typed text into element '{resolved}' (self-healed from '{automationId}')."
+                : $"Typed text into element '{resolved}'.")
+            : $"Error: failed to type into element '{automationId}'. Element not found.";
+    }
+
+    /// <summary>
+    /// Clears text in an element by automation ID with self-healing.
+    /// </summary>
+    public string Clear(string automationId)
+    {
+        var resolved = ResolveWithHealing(automationId);
+        var ok = _driver.TypeTextByAutomationId(resolved, string.Empty);
+        return ok
+            ? (resolved != automationId
+                ? $"Cleared text in element '{resolved}' (self-healed from '{automationId}')."
+                : $"Cleared text in element '{resolved}'.")
+            : $"Error: failed to clear text in element '{automationId}'. Element not found.";
     }
 
     /// <summary>
@@ -175,14 +229,41 @@ public class AgentAutomationEngine
         }
 
         var message = savedPath != null
-            ? $"Screenshot captured. Saved: {savedPath}"
+            ? $"Screenshot saved: {savedPath}"
             : "Screenshot captured.";
         return pngBytes != null
             ? AgentOperationResult.WithImage(message, pngBytes)
             : AgentOperationResult.Ok(message);
     }
 
+<<<<<<< HEAD
     // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
+=======
+    /// <summary>
+    /// Lists all application windows (main + dialogs) with titles.
+    /// </summary>
+    public string ListWindows()
+    {
+        var windows = _driver.GetOpenWindowTitles();
+        if (windows == null || windows.Count == 0)
+        {
+            return "No open windows found.";
+        }
+
+        return string.Join("\n", windows.Select((title, i) => $"[{i}] {title}"));
+    }
+
+    /// <summary>
+    /// Switches automation context to the app window whose title contains the given text.
+    /// </summary>
+    public string SwitchWindow(string titleContains, int timeoutSeconds = 5)
+    {
+        var ok = _driver.SwitchToWindow(titleContains, TimeSpan.FromSeconds(timeoutSeconds));
+        return ok
+            ? $"Switched context to window matching: '{titleContains}'"
+            : $"Error: no window found matching '{titleContains}'.";
+    }
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
 
     // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
 
@@ -293,6 +374,7 @@ public class AgentAutomationEngine
         return result.ToSummary();
     }
 
+<<<<<<< HEAD
     // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
 
     /// <summary>
@@ -326,6 +408,8 @@ public class AgentAutomationEngine
         return "Current window closed.";
     }
 
+=======
+>>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
     // ── [SESSION-TO-TEST] Export Session to C# or Gherkin ─────────────────────
 
     /// <summary>
@@ -362,5 +446,31 @@ public class AgentAutomationEngine
         {
             return $"Error exporting test: {ex.Message}";
         }
+    }
+
+    // ── [SCROLLING] Accessibility & Container Scrolling ───────────────────────
+
+    /// <summary>
+    /// Scrolls the element or active window in the specified direction ("up", "down", "left", "right").
+    /// </summary>
+    public string Scroll(string direction = "down", string? automationId = null)
+    {
+        var targetId = !string.IsNullOrEmpty(automationId) ? ResolveWithHealing(automationId) : null;
+        var ok = _driver.Scroll(direction, targetId);
+        return ok
+            ? $"Scrolled '{direction}' successfully."
+            : $"Failed to scroll '{direction}'.";
+    }
+
+    /// <summary>
+    /// Scrolls a container until the target element is visible on screen.
+    /// </summary>
+    public string ScrollIntoView(string automationId)
+    {
+        var targetId = ResolveWithHealing(automationId);
+        var ok = _driver.ScrollIntoView(targetId);
+        return ok
+            ? $"Scrolled element '{targetId}' into view."
+            : $"Failed to scroll element '{targetId}' into view.";
     }
 }

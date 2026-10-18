@@ -17,8 +17,8 @@ public static class FuzzyLocator
     /// </summary>
     public static readonly string[] KnownActionTypes =
     {
-        "click", "double_click", "right_click", "hover", "type", "clear", "check", "uncheck",
-        "select", "press_key", "send_keys", "scroll", "wait", "assert_text"
+        "click", "double_click", "right_click", "hover", "type", "paste", "clear", "check", "uncheck",
+        "select", "press_key", "send_keys", "scroll", "scroll_into_view", "wait", "assert", "assert_text"
     };
 
     /// <summary>

@@ -395,7 +395,7 @@ public static class ReqnrollServices
         public bool SendKeys(string text)
             => text != null;
 
-        public string GetCompactUiTree(string format = "text")
+        public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)
         {
             if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
             {
@@ -433,5 +433,9 @@ public static class ReqnrollServices
         public bool SwitchToWindow(string titleSubstring, TimeSpan? timeout = null) => !string.IsNullOrEmpty(titleSubstring);
 
         public void CloseCurrentWindow() { }
+
+        public bool Scroll(string direction = "down", string? automationId = null) => true;
+
+        public bool ScrollIntoView(string targetAutomationId) => !string.IsNullOrEmpty(targetAutomationId);
     }
 }

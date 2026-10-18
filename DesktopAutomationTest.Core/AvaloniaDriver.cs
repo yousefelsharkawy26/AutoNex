@@ -257,68 +257,26 @@ public class AvaloniaDriver : IDriver
         return false;
     }
 
-    public bool Scroll(string? automationId, string direction, int amount = 3)
-    {
-        // Avalonia in-process scrolling would use ScrollViewer.Offset; the
-        // standalone driver cannot reach it, so this is a best-effort no-op.
-        return true;
-    }
 
-    public bool TakeScreenshot(string filePath)
-    {
-        // Standalone or Headless screenshot support
-        return true;
-    }
-
-    public Rectangle GetWindowBounds()
-    {
-        if (_activeWindow == null) return new Rectangle(0, 0, 800, 600);
-        return new Rectangle(0, 0, (int)_activeWindow.Width, (int)_activeWindow.Height);
-    }
-
-    public bool WaitForInputIdle(TimeSpan timeout) => true;
-
-    // ── [FEATURE-WINDOWS] Multi-window / process support (HEAD-side interface members) ──
-
-    public IReadOnlyList<(string Title, int ProcessId)> ListAppWindows()
-        => GetOpenWindowTitles().Select(t => (t, Environment.ProcessId)).ToList();
-
-    /// <summary>
-    /// Switches automation context to the window whose title contains the given text.
-    /// Delegates to <see cref="SwitchToWindow"/> so both APIs share one implementation.
-    /// </summary>
-    public bool SwitchWindow(string titleContains)
-        => SwitchToWindow(titleContains);
-
-    public void AttachToProcess(int processId)
-        => throw new PlatformNotSupportedException(
-            "Attaching to an external process by id is only supported by the FlaUI (Windows UIA) driver.");
-
-    public void AttachToProcessByName(string processName)
-        => throw new PlatformNotSupportedException(
-            "Attaching to an external process by name is only supported by the FlaUI (Windows UIA) driver.");
-
-    public byte[]? CaptureScreenshotBytes()
-        => null; // Not yet supported in headless/Avalonia mode; TakeScreenshot(filePath) remains a no-op success.
-
-    public bool IsApplicationAlive()
-        => !_disposed && _activeWindow != null;
-
-    // ── Token-Minimized UI Tree Extraction (Cross-Platform) ───────────────────
-
-    public string GetCompactUiTree(string format = "text")
-    {
-        if (_activeWindow == null)
+        Visual root = _activeWindow;
+        if (!string.IsNullOrEmpty(containerId))
         {
-            return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ? "[]" : "[No Active Avalonia Window]";
+            var container = FindControlById(containerId);
+            if (container != null)
+            {
+                root = container;
+            }
         }
 
         var elements = new List<CompactUiElement>();
-        ExtractInteractiveElements(_activeWindow, elements);
+        ExtractInteractiveElements(root, elements, 0, maxDepth);
+
+        // Summarize repetitive list items to minimize token overhead
+        elements = CompactUiTree.SummarizeRepetitiveElements(elements);
 
         if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
         {
-            return JsonSerializer.Serialize(elements, new JsonSerializerOptions { WriteIndented = true });
+            return JsonSerializer.Serialize(elements, new JsonSerializerOptions { WriteIndented = false });
         }
 
         return elements.Count == 0
@@ -326,7 +284,7 @@ public class AvaloniaDriver : IDriver
             : string.Join("\n", elements.Select(e => e.ToString()));
     }
 
-    private void ExtractInteractiveElements(Visual parent, List<CompactUiElement> list)
+    private void ExtractInteractiveElements(Visual parent, List<CompactUiElement> list, int currentDepth = 0, int maxDepth = -1)
     {
         foreach (var child in parent.GetVisualChildren())
         {
@@ -349,21 +307,35 @@ public class AvaloniaDriver : IDriver
                 }
             }
 
-            ExtractInteractiveElements(child, list);
+            if (maxDepth <= 0 || currentDepth < maxDepth)
+            {
+                ExtractInteractiveElements(child, list, currentDepth + 1, maxDepth);
+            }
         }
     }
 
     private static (string? val, string? state) ExtractValueAndState(Control control)
     {
         string? val = null;
-        string? state = null;
+        var states = new List<string>();
 
         if (control is TextBox tb) val = tb.Text;
         if (control is TextBlock tbl) val = tbl.Text;
         if (control is ComboBox cb) val = cb.SelectedItem?.ToString();
-        if (control is CheckBox chk) state = chk.IsChecked == true ? "checked" : "unchecked";
-        if (control is RadioButton rb) state = rb.IsChecked == true ? "selected" : null;
+        if (control is CheckBox chk) states.Add(chk.IsChecked == true ? "checked" : "unchecked");
+        if (control is RadioButton rb && rb.IsChecked == true) states.Add("selected");
 
+        if (!control.IsEffectivelyEnabled)
+        {
+            states.Add("disabled");
+        }
+
+        if (!control.IsEffectivelyVisible)
+        {
+            states.Add("offscreen");
+        }
+
+        string? state = states.Count > 0 ? string.Join(",", states) : null;
         return (val, state);
     }
 
@@ -397,6 +369,41 @@ public class AvaloniaDriver : IDriver
             _activeWindow.Close();
             _activeWindow = _openWindows.LastOrDefault();
         }
+    }
+
+    // ── Scrolling & Accessibility Navigation ──────────────────────────────────
+
+    public bool Scroll(string direction = "down", string? automationId = null)
+    {
+        var control = !string.IsNullOrEmpty(automationId) ? FindControlById(automationId) : _activeWindow;
+        if (control == null) return false;
+
+        var scrollViewer = control as ScrollViewer ?? control.FindDescendantOfType<ScrollViewer>();
+        if (scrollViewer != null)
+        {
+            var offset = scrollViewer.Offset;
+            const double delta = 50.0;
+            scrollViewer.Offset = direction.ToLowerInvariant() switch
+            {
+                "up" => new Vector(offset.X, Math.Max(0, offset.Y - delta)),
+                "down" => new Vector(offset.X, offset.Y + delta),
+                "left" => new Vector(Math.Max(0, offset.X - delta), offset.Y),
+                "right" => new Vector(offset.X + delta, offset.Y),
+                _ => new Vector(offset.X, offset.Y + delta)
+            };
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool ScrollIntoView(string targetAutomationId)
+    {
+        var target = FindControlById(targetAutomationId);
+        if (target == null) return false;
+
+        target.BringIntoView();
+        return true;
     }
 
     public void Dispose()
