@@ -171,15 +171,21 @@ in a single `stryker-config` root object.
 ## Features
 
 ### Core Library & Agent Engine
-- **Driver Abstraction**: `IDriver` with FlaUI implementation
+- **Driver Abstraction**: `IDriver` with `FlaUIAdapter` (Windows UIA3) and `AvaloniaDriver` (cross-platform Linux/macOS/Windows)
 - **Token-Efficient Agent Automation**:
   - `CompactUiTree`: filtered, semantic-only UI hierarchy dump (`[Button #Submit "Submit"]`) saving ~90% tokens
+  - **Intelligent List Summarization**: collapses repetitive rows/items into compact summary tags (`[ListItem ... and 97 more items omitted]`)
+  - **State Caching & Deduplication**: `diff_only=true` returns `[No UI changes since last inspect]` when UI state is unchanged
   - `AgentBatchRunner`: multi-action JSON execution pipeline in 1 tool call
+  - **Dry-Run Validation Mode**: validates all locators and action syntax without executing destructive changes
+  - **Multi-Assertion Support**: batch assertions inside plans with clear diagnostic failure details
+  - **Scroll & ScrollIntoView**: native scrolling support for lists, data grids, and offscreen controls
   - `FuzzyLocator`: Levenshtein self-healing locators that avoid trial-and-error retry loops
   - `AgentStateTracker`: real-time UI diffing / delta tracking
   - `SessionRecorder` & `SessionReplayer`: zero-token replay of captured automation sessions
-  - `CompactUiElement`: lightweight JSON/Text DTO for LLM context windows
-- **Model Context Protocol (MCP) Server**: 9 tools exposing full automation to Claude, Cursor, and any MCP agent
+  - **Session Persistence**: automatically restores active application connections across MCP client reconnects
+- **Model Context Protocol (MCP) Server (v1.6.0)**: 16 tools exposing full automation to Claude, Cursor, and any MCP agent
+- **Structured Logging**: timestamped, level-tagged logs with `--verbose` support
 - **AutoNex CLI**: Global `dotnet tool` for inspection, batch plans, record, and replay
 - **Desktop Controls**: CheckBox, ComboBox (text/index), RadioButton automation
 - **Advanced Keyboard & Mouse**: DoubleClick, RightClick, Hover, PressKey, SendKeys, Drag & Drop

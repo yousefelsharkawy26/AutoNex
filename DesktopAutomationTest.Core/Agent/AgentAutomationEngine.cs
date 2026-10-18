@@ -42,24 +42,36 @@ public class AgentAutomationEngine
         _batchRunner = new AgentBatchRunner(_driver);
     }
 
+    private string? _lastInspectTree;
+
     /// <summary>
     /// Gets a token-minimized representation of the UI interactive elements.
     /// Recommended to call at the start of a test session.
     /// Format: "text" (minimal tokens, e.g. [Button #Submit "Submit"]) or "json".
+    /// When diffOnly is true, returns "[No UI changes since last inspect]" if UI is identical to last call.
     /// </summary>
-    public string InspectScreen(string format = "text")
+    public string InspectScreen(string format = "text", bool diffOnly = false, int maxDepth = -1, string? containerId = null)
     {
-        return _driver.GetCompactUiTree(format);
+        var currentTree = _driver.GetCompactUiTree(format, maxDepth, containerId);
+
+        if (diffOnly && _lastInspectTree != null && string.Equals(_lastInspectTree, currentTree, StringComparison.Ordinal))
+        {
+            return "[No UI changes since last inspect]";
+        }
+
+        _lastInspectTree = currentTree;
+        return currentTree;
     }
 
     /// <summary>
     /// Runs a batch of actions specified as a compact JSON string.
-    /// Supports: click, type, check, uncheck, select, hover, double_click, right_click, press_key, send_keys, wait, assert_text.
+    /// Supports: click, type, paste, check, uncheck, select, hover, double_click, right_click, press_key, send_keys, wait, assert, assert_text, scroll, scroll_into_view, clear.
+    /// When dryRun is true, validates all actions and locators without modifying UI state.
     /// Auto-heals misspelled IDs for ALL locator-based actions and returns a single-line summary with UI state delta.
     /// </summary>
-    public string ExecutePlan(string jsonActions)
+    public string ExecutePlan(string jsonActions, bool dryRun = false)
     {
-        var result = _batchRunner.ExecuteJson(jsonActions);
+        var result = _batchRunner.ExecuteJson(jsonActions, dryRun);
         return result.ToCompactSummary();
     }
 
@@ -104,6 +116,48 @@ public class AgentAutomationEngine
         if (_driver.TryGetTextByAutomationId(resolved, out var text))
             return text ?? string.Empty;
         return $"Error: element '{automationId}' not found.";
+    }
+
+    /// <summary>
+    /// Clicks an element by automation ID with self-healing.
+    /// </summary>
+    public string Click(string automationId)
+    {
+        var resolved = ResolveWithHealing(automationId);
+        var ok = _driver.ClickByAutomationId(resolved);
+        return ok
+            ? (resolved != automationId
+                ? $"Clicked element '{resolved}' (self-healed from '{automationId}')."
+                : $"Clicked element '{resolved}'.")
+            : $"Error: failed to click element '{automationId}'. Element not found or disabled.";
+    }
+
+    /// <summary>
+    /// Types text into an element by automation ID with self-healing.
+    /// </summary>
+    public string Type(string automationId, string text)
+    {
+        var resolved = ResolveWithHealing(automationId);
+        var ok = _driver.TypeTextByAutomationId(resolved, text);
+        return ok
+            ? (resolved != automationId
+                ? $"Typed text into element '{resolved}' (self-healed from '{automationId}')."
+                : $"Typed text into element '{resolved}'.")
+            : $"Error: failed to type into element '{automationId}'. Element not found.";
+    }
+
+    /// <summary>
+    /// Clears text in an element by automation ID with self-healing.
+    /// </summary>
+    public string Clear(string automationId)
+    {
+        var resolved = ResolveWithHealing(automationId);
+        var ok = _driver.TypeTextByAutomationId(resolved, string.Empty);
+        return ok
+            ? (resolved != automationId
+                ? $"Cleared text in element '{resolved}' (self-healed from '{automationId}')."
+                : $"Cleared text in element '{resolved}'.")
+            : $"Error: failed to clear text in element '{automationId}'. Element not found.";
     }
 
     /// <summary>

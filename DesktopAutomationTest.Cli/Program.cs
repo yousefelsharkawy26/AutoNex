@@ -42,14 +42,11 @@ internal class Program
             "wait"    => RunWait(parsed),
             "text"    => RunText(parsed),
             "shot"    => RunShot(parsed),
-<<<<<<< HEAD
             "windows" => RunWindows(parsed),
             "switch"  => RunSwitchWindow(parsed),
-=======
             "record"  => RunRecord(parsed),
             "replay"  => RunReplay(parsed),
             "export"  => RunExport(parsed),
->>>>>>> f70b1d2
             _         => UnknownCommand(command)
         };
     }
@@ -142,7 +139,6 @@ internal class Program
         return result.StartsWith("Error:") ? 1 : 0;
     }
 
-<<<<<<< HEAD
     static int RunAttach(ParsedArgs p)
     {
         var pidStr = p.Get("pid");
@@ -192,8 +188,6 @@ internal class Program
         Console.WriteLine(result);
         return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
     }
-
-=======
 
     static int RunRecord(ParsedArgs p)
     {
@@ -291,7 +285,6 @@ internal class Program
         return 0;
     }
 
->>>>>>> f70b1d2
     static int UnknownCommand(string cmd)
     {
         Console.Error.WriteLine($"Error: Unknown command '{cmd}'. Run 'autonex help' for usage.");
@@ -309,16 +302,12 @@ internal class Program
 
     static IDriver CreateAndLaunch(ParsedArgs p)
     {
-<<<<<<< HEAD
-        var driver = CreateDriverForSession(p, launchIfNeeded: false);
-=======
         var appPath = p.Get("app")!;
         var appArgs = p.Get("args");
         var driverType = p.Get("driver", "flaui") ?? "flaui";
 
         var driver = DriverFactory.CreateDriver(driverType);
         driver.Initialize(appPath, appArgs);
->>>>>>> f70b1d2
         return driver;
     }
 
@@ -359,7 +348,7 @@ internal class Program
         {
             try
             {
-                driver.AttachToProcess(session.Value.Pid);
+                driver.AttachToProcess(session.Pid);
                 return driver;
             }
             catch
@@ -425,13 +414,18 @@ internal class Program
     {
         try
         {
-            var proc = driver.GetOwnProcess();
-            if (proc == null)
+            int? pid = null;
+            if (driver is FlaUIAdapter flaui && flaui.Application != null)
+            {
+                pid = flaui.Application.ProcessId;
+            }
+
+            if (pid == null)
                 return;
 
             var json = System.Text.Json.JsonSerializer.Serialize(new
             {
-                pid = proc.Id,
+                pid = pid.Value,
                 appPath
             });
             File.WriteAllText(SessionFilePath, json);

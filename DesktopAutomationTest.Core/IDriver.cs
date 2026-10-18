@@ -161,7 +161,9 @@ public interface IDriver : IDisposable
     /// Includes all application windows (main window + open dialogs).
     /// </summary>
     /// <param name="format">Format of the dump: "text" (default, minimal tokens) or "json".</param>
-    string GetCompactUiTree(string format = "text");
+    /// <param name="maxDepth">Optional maximum hierarchy traversal depth.</param>
+    /// <param name="containerId">Optional container AutomationId to filter children.</param>
+    string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null);
 
     // ── [FEATURE-WINDOWS] Multi-window / dialog support ───────────────────────
 

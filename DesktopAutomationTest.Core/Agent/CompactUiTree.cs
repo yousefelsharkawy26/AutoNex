@@ -29,8 +29,9 @@ public static class CompactUiTree
     /// Traverses the window hierarchy and extracts only interactive/semantic elements.
     /// </summary>
     /// <param name="root">The root window or container element.</param>
+    /// <param name="maxDepth">Optional maximum traversal depth.</param>
     /// <returns>A flat list of compact interactive UI elements.</returns>
-    public static List<CompactUiElement> ExtractInteractiveElements(AutomationElement? root)
+    public static List<CompactUiElement> ExtractInteractiveElements(AutomationElement? root, int maxDepth = -1)
     {
         var results = new List<CompactUiElement>();
         if (root == null)
@@ -38,7 +39,7 @@ public static class CompactUiTree
             return results;
         }
 
-        Traverse(root, results);
+        Traverse(root, results, 0, maxDepth);
 
         // De-duplicate identical elements: UIA can expose the same logical control
         // more than once (e.g. a ComboBox and its inner edit part). Duplicates waste
@@ -50,14 +51,66 @@ public static class CompactUiTree
     }
 
     /// <summary>
+    /// Intelligently summarizes repetitive consecutive elements (such as list items or rows)
+    /// to drastically reduce token consumption on large grids or lists.
+    /// </summary>
+    public static List<CompactUiElement> SummarizeRepetitiveElements(IEnumerable<CompactUiElement> elements, int maxRepeated = 3)
+    {
+        var input = elements.ToList();
+        var result = new List<CompactUiElement>();
+
+        int i = 0;
+        while (i < input.Count)
+        {
+            var current = input[i];
+            int runLength = 1;
+            while (i + runLength < input.Count &&
+                   string.Equals(input[i + runLength].Type, current.Type, StringComparison.OrdinalIgnoreCase) &&
+                   (string.Equals(current.Type, "ListItem", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(current.Type, "MenuItem", StringComparison.OrdinalIgnoreCase) ||
+                    (string.IsNullOrEmpty(current.AutomationId) && string.IsNullOrEmpty(input[i + runLength].AutomationId))))
+            {
+                runLength++;
+            }
+
+            if (runLength > maxRepeated)
+            {
+                for (int k = 0; k < maxRepeated; k++)
+                {
+                    result.Add(input[i + k]);
+                }
+                int omitted = runLength - maxRepeated;
+                result.Add(new CompactUiElement
+                {
+                    Type = current.Type,
+                    Name = $"... and {omitted} more {current.Type} items omitted ({runLength} total)"
+                });
+                i += runLength;
+            }
+            else
+            {
+                result.Add(current);
+                i++;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Generates a token-minimal text dump of the current UI.
     /// Format:
     /// - [Edit #FirstNameTextBox]
     /// - [Button #SubmitButton "Submit"]
     /// </summary>
-    public static string DumpAsText(AutomationElement? root)
+    public static string DumpAsText(AutomationElement? root, int maxDepth = -1, bool summarize = true)
     {
-        var elements = ExtractInteractiveElements(root);
+        var elements = ExtractInteractiveElements(root, maxDepth);
+        if (summarize)
+        {
+            elements = SummarizeRepetitiveElements(elements);
+        }
+
         if (elements.Count == 0)
         {
             return "[Empty or No Interactive Elements Found]";
@@ -69,9 +122,15 @@ public static class CompactUiTree
     /// <summary>
     /// Generates a compact JSON array of interactive elements.
     /// </summary>
-    public static string DumpAsJson(AutomationElement? root)
+    public static string DumpAsJson(AutomationElement? root, int maxDepth = -1, bool summarize = true)
     {
-        return SerializeElements(ExtractInteractiveElements(root));
+        var elements = ExtractInteractiveElements(root, maxDepth);
+        if (summarize)
+        {
+            elements = SummarizeRepetitiveElements(elements);
+        }
+
+        return SerializeElements(elements);
     }
 
     /// <summary>
@@ -86,7 +145,7 @@ public static class CompactUiTree
         });
     }
 
-    private static void Traverse(AutomationElement element, List<CompactUiElement> list)
+    private static void Traverse(AutomationElement element, List<CompactUiElement> list, int currentDepth = 0, int maxDepth = -1)
     {
         try
         {
@@ -139,10 +198,15 @@ public static class CompactUiTree
                 }
             }
 
+            if (maxDepth > 0 && currentDepth >= maxDepth)
+            {
+                return;
+            }
+
             // Recurse into children
             foreach (var child in element.FindAllChildren())
             {
-                Traverse(child, list);
+                Traverse(child, list, currentDepth + 1, maxDepth);
             }
         }
         catch

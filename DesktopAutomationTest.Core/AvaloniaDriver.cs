@@ -288,19 +288,32 @@ public class AvaloniaDriver : IDriver
 
     // ── Token-Minimized UI Tree Extraction (Cross-Platform) ───────────────────
 
-    public string GetCompactUiTree(string format = "text")
+    public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)
     {
         if (_activeWindow == null)
         {
             return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ? "[]" : "[No Active Avalonia Window]";
         }
 
+        Visual root = _activeWindow;
+        if (!string.IsNullOrEmpty(containerId))
+        {
+            var container = FindControlById(containerId);
+            if (container != null)
+            {
+                root = container;
+            }
+        }
+
         var elements = new List<CompactUiElement>();
-        ExtractInteractiveElements(_activeWindow, elements);
+        ExtractInteractiveElements(root, elements, 0, maxDepth);
+
+        // Summarize repetitive list items to minimize token overhead
+        elements = CompactUiTree.SummarizeRepetitiveElements(elements);
 
         if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
         {
-            return JsonSerializer.Serialize(elements, new JsonSerializerOptions { WriteIndented = true });
+            return JsonSerializer.Serialize(elements, new JsonSerializerOptions { WriteIndented = false });
         }
 
         return elements.Count == 0
@@ -308,7 +321,7 @@ public class AvaloniaDriver : IDriver
             : string.Join("\n", elements.Select(e => e.ToString()));
     }
 
-    private void ExtractInteractiveElements(Visual parent, List<CompactUiElement> list)
+    private void ExtractInteractiveElements(Visual parent, List<CompactUiElement> list, int currentDepth = 0, int maxDepth = -1)
     {
         foreach (var child in parent.GetVisualChildren())
         {
@@ -331,7 +344,10 @@ public class AvaloniaDriver : IDriver
                 }
             }
 
-            ExtractInteractiveElements(child, list);
+            if (maxDepth <= 0 || currentDepth < maxDepth)
+            {
+                ExtractInteractiveElements(child, list, currentDepth + 1, maxDepth);
+            }
         }
     }
 

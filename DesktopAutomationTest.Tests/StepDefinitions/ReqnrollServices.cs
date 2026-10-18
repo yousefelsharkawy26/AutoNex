@@ -385,7 +385,7 @@ public static class ReqnrollServices
         public bool SendKeys(string text)
             => text != null;
 
-        public string GetCompactUiTree(string format = "text")
+        public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)
         {
             if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
             {

@@ -592,19 +592,36 @@ public class FlaUIAdapter : IDriver
     /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
     /// </summary>
-    public string GetCompactUiTree(string format = "text")
+    public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)
     {
         if (_mainWindow == null)
         {
             return "[No Main Window Available]";
         }
 
-        if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+        FlaUI.Core.AutomationElements.AutomationElement root = _mainWindow;
+        if (!string.IsNullOrEmpty(containerId))
         {
-            return Agent.CompactUiTree.DumpAsJson(_mainWindow);
+            try
+            {
+                var container = _mainWindow.FindFirstDescendant(cf => cf.ByAutomationId(containerId));
+                if (container != null)
+                {
+                    root = container;
+                }
+            }
+            catch
+            {
+                // Fallback to _mainWindow
+            }
         }
 
-        return Agent.CompactUiTree.DumpAsText(_mainWindow);
+        if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            return Agent.CompactUiTree.DumpAsJson(root, maxDepth);
+        }
+
+        return Agent.CompactUiTree.DumpAsText(root, maxDepth);
     }
 
     /// <summary>

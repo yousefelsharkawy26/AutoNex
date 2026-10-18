@@ -25,7 +25,7 @@ public class AgentBatchRunner
     ///   {"action": "assert_text", "id": "ResultTextBlock", "contains": "Ahmed"}
     /// ]
     /// </summary>
-    public AgentBatchResult ExecuteJson(string jsonActions)
+    public AgentBatchResult ExecuteJson(string jsonActions, bool dryRun = false)
     {
         Guard.AgainstNullOrEmpty(jsonActions, nameof(jsonActions));
 
@@ -45,7 +45,7 @@ public class AgentBatchRunner
                 };
             }
 
-            return Execute(actions);
+            return Execute(actions, dryRun);
         }
         catch (Exception ex)
         {
@@ -59,9 +59,10 @@ public class AgentBatchRunner
 
     /// <summary>
     /// Executes a list of structured agent actions sequentially.
+    /// Supports dry-run validation to test plans before actual execution.
     /// Halts on first failure and reports step index.
     /// </summary>
-    public AgentBatchResult Execute(IEnumerable<AgentAction> actions)
+    public AgentBatchResult Execute(IEnumerable<AgentAction> actions, bool dryRun = false)
     {
         var actionList = actions.ToList();
         var stepResults = new List<ActionStepResult>();
@@ -69,7 +70,9 @@ public class AgentBatchRunner
         for (int i = 0; i < actionList.Count; i++)
         {
             var action = actionList[i];
-            var (success, error, diagnostic) = ExecuteSingleAction(action);
+            var (success, error, diagnostic) = dryRun
+                ? ValidateSingleActionDryRun(action)
+                : ExecuteSingleAction(action);
 
             stepResults.Add(new ActionStepResult
             {
@@ -90,7 +93,7 @@ public class AgentBatchRunner
                     TotalStepsCount = actionList.Count,
                     Error = error,
                     Steps = stepResults,
-                    Delta = ComputeCurrentDelta()
+                    Delta = dryRun ? "[Dry-run validation failed]" : ComputeCurrentDelta()
                 };
             }
         }
@@ -101,7 +104,7 @@ public class AgentBatchRunner
             ExecutedStepsCount = actionList.Count,
             TotalStepsCount = actionList.Count,
             Steps = stepResults,
-            Delta = ComputeCurrentDelta()
+            Delta = dryRun ? "[Dry-run: all locators and actions validated successfully]" : ComputeCurrentDelta()
         };
     }
 
@@ -152,9 +155,24 @@ public class AgentBatchRunner
             case "type":
                 if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for type action.", null);
+                if (action.Clear == true)
+                {
+                    _driver.TypeTextByAutomationId(targetId, string.Empty);
+                }
                 return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
                     ? (true, null, null)
                     : (false, $"Failed to type text into '{targetId}'.", GetCandidateDiagnostic(targetId));
+
+            case "paste":
+                if (string.IsNullOrEmpty(targetId))
+                    return (false, "Missing 'id' for paste action.", null);
+                if (action.Clear == true)
+                {
+                    _driver.TypeTextByAutomationId(targetId, string.Empty);
+                }
+                return _driver.TypeTextByAutomationId(targetId, action.Value ?? string.Empty)
+                    ? (true, null, null)
+                    : (false, $"Failed to paste text into '{targetId}'.", GetCandidateDiagnostic(targetId));
 
             case "check":
                 if (string.IsNullOrEmpty(targetId))
@@ -229,12 +247,13 @@ public class AgentBatchRunner
                     ? (true, null, null)
                     : (false, $"Timeout: element '{targetId}' not found after {waitSeconds}s.", GetCandidateDiagnostic(targetId));
 
+            case "assert":
             case "assert_text":
                 if (string.IsNullOrEmpty(targetId))
-                    return (false, "Missing 'id' for assert_text action.", null);
+                    return (false, $"Missing 'id' for {type} action.", null);
 
                 if (!_driver.TryGetTextByAutomationId(targetId, out var text))
-                    return (false, $"Element '{targetId}' not found for text assertion.", GetCandidateDiagnostic(targetId));
+                    return (false, $"Element '{targetId}' not found for assertion.", GetCandidateDiagnostic(targetId));
 
                 text ??= string.Empty;
 
@@ -275,7 +294,7 @@ public class AgentBatchRunner
                     : (false, $"Failed to clear text in '{targetId}'.", GetCandidateDiagnostic(targetId));
 
             default:
-                var validActions = new[] { "click", "type", "check", "uncheck", "select", "double_click", "right_click", "hover", "press_key", "send_keys", "wait", "assert_text", "scroll", "scroll_into_view", "clear" };
+                var validActions = new[] { "click", "type", "check", "uncheck", "select", "double_click", "right_click", "hover", "press_key", "send_keys", "wait", "assert", "assert_text", "scroll", "scroll_into_view", "clear", "paste" };
                 var closest = validActions
                     .Select(a => new { Action = a, Distance = FuzzyLocator.CalculateSimilarity(type, a) })
                     .OrderByDescending(x => x.Distance)
@@ -287,6 +306,48 @@ public class AgentBatchRunner
 
                 return (false, $"Unknown action type '{action.Action}'.{suggestion}", null);
         }
+    }
+
+    private (bool success, string? error, string? diagnostic) ValidateSingleActionDryRun(AgentAction action)
+    {
+        if (string.IsNullOrEmpty(action.Action))
+        {
+            return (false, "Missing required field 'action'.", null);
+        }
+
+        var type = action.Action.ToLowerInvariant();
+        var validActions = new[] { "click", "type", "check", "uncheck", "select", "double_click", "right_click", "hover", "press_key", "send_keys", "wait", "assert", "assert_text", "scroll", "scroll_into_view", "clear", "paste" };
+
+        if (!validActions.Contains(type))
+        {
+            var closest = validActions
+                .Select(a => new { Action = a, Distance = FuzzyLocator.CalculateSimilarity(type, a) })
+                .OrderByDescending(x => x.Distance)
+                .FirstOrDefault();
+
+            var suggestion = closest != null && closest.Distance > 0.4
+                ? $" Did you mean '{closest.Action}'?"
+                : "";
+
+            return (false, $"Unknown action type '{action.Action}'.{suggestion}", null);
+        }
+
+        var requiresLocator = new[] { "click", "type", "check", "uncheck", "select", "double_click", "right_click", "hover", "assert", "assert_text", "scroll_into_view", "clear", "paste" };
+        if (requiresLocator.Contains(type))
+        {
+            if (string.IsNullOrEmpty(action.AutomationId))
+            {
+                return (false, $"Action '{type}' requires an 'id'.", null);
+            }
+
+            var resolvedId = ResolveTargetId(action.AutomationId);
+            if (!_driver.TryFindByAutomationId(resolvedId, TimeSpan.FromMilliseconds(500)))
+            {
+                return (false, $"[Dry-run] Element '{action.AutomationId}' not found on screen.", GetCandidateDiagnostic(action.AutomationId));
+            }
+        }
+
+        return (true, null, null);
     }
 
     private string? GetCandidateDiagnostic(string? targetId)
