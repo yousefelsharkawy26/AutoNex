@@ -257,6 +257,12 @@ public class AvaloniaDriver : IDriver
         return false;
     }
 
+    public string GetCompactUiTree(string format = "text", int maxDepth = -1, string? containerId = null)
+    {
+        if (_activeWindow == null)
+        {
+            return string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ? "[]" : "[No Active Avalonia Window]";
+        }
 
         Visual root = _activeWindow;
         if (!string.IsNullOrEmpty(containerId))
@@ -405,6 +411,68 @@ public class AvaloniaDriver : IDriver
         target.BringIntoView();
         return true;
     }
+
+    // ── IDriver — Windows / Process Members (cross-platform stubs) ────────────
+
+    /// <summary>Saves a screenshot of the active window to a file. On Linux/headless this is a no-op.</summary>
+    public bool TakeScreenshot(string filePath)
+    {
+        var bytes = CaptureScreenshotBytes();
+        if (bytes == null) return false;
+        File.WriteAllBytes(filePath, bytes);
+        return true;
+    }
+
+    /// <summary>Returns the bounding rectangle of the active window, or Empty if unavailable.</summary>
+    public Rectangle GetWindowBounds()
+    {
+        if (_activeWindow == null) return Rectangle.Empty;
+        var bounds = _activeWindow.Bounds;
+        return new Rectangle((int)bounds.X, (int)bounds.Y, (int)bounds.Width, (int)bounds.Height);
+    }
+
+    /// <summary>Waits for the UI thread to become idle. Avalonia headless is synchronous; this returns immediately.</summary>
+    public bool WaitForInputIdle(TimeSpan timeout)
+    {
+        // Avalonia headless mode is synchronous — already idle after each operation.
+        return true;
+    }
+
+    /// <summary>Lists titles and process IDs of all tracked windows.</summary>
+    public IReadOnlyList<(string Title, int ProcessId)> ListAppWindows()
+    {
+        return _openWindows
+            .Select(w => (w.Title ?? "Untitled", 0))
+            .ToList();
+    }
+
+    /// <summary>Switches the active window by title substring (delegates to SwitchToWindow).</summary>
+    public bool SwitchWindow(string titleContains) => SwitchToWindow(titleContains);
+
+    /// <summary>AvaloniaDriver works in-process; attach-by-pid is not supported.</summary>
+    public void AttachToProcess(int processId)
+        => throw new NotSupportedException("AvaloniaDriver is in-process; use Attach(Window) instead.");
+
+    /// <summary>AvaloniaDriver works in-process; attach-by-name is not supported.</summary>
+    public void AttachToProcessByName(string processName)
+        => throw new NotSupportedException("AvaloniaDriver is in-process; use Attach(Window) instead.");
+
+    /// <summary>Captures the active window as PNG bytes. Returns null in headless mode without a render surface.</summary>
+    public byte[]? CaptureScreenshotBytes()
+    {
+        // Headless Avalonia windows don't have a native surface to capture.
+        // Return null; callers should treat null as "not supported on this driver".
+        return null;
+    }
+
+    /// <summary>Returns true while at least one tracked window is open and not disposed.</summary>
+    public bool IsApplicationAlive()
+    {
+        return !_disposed && _openWindows.Count > 0;
+    }
+
+    /// <summary>AvaloniaDriver is in-process; there is no separate OS process to return.</summary>
+    public System.Diagnostics.Process? GetOwnProcess() => null;
 
     public void Dispose()
     {

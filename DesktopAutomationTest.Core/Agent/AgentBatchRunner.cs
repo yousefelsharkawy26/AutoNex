@@ -180,7 +180,7 @@ public class AgentBatchRunner
             case "clear":
                 if (string.IsNullOrEmpty(targetId))
                     return (false, "Missing 'id' for clear action.", null);
-                return _driver.ClearByAutomationId(targetId)
+                return (_driver.ClearByAutomationId(targetId) || _driver.TypeTextByAutomationId(targetId, string.Empty))
                     ? (true, null, null)
                     : (false, $"Failed to clear element '{targetId}'.", GetCandidateDiagnostic(targetId));
 

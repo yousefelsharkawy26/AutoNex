@@ -236,9 +236,8 @@ public class AgentAutomationEngine
             : AgentOperationResult.Ok(message);
     }
 
-<<<<<<< HEAD
     // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
-=======
+
     /// <summary>
     /// Lists all application windows (main + dialogs) with titles.
     /// </summary>
@@ -263,9 +262,6 @@ public class AgentAutomationEngine
             ? $"Switched context to window matching: '{titleContains}'"
             : $"Error: no window found matching '{titleContains}'.";
     }
->>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
-
-    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
 
     /// <summary>
     /// Attaches the driver to an already-running process (by pid or exe name) instead of launching a new instance.
@@ -374,31 +370,6 @@ public class AgentAutomationEngine
         return result.ToSummary();
     }
 
-<<<<<<< HEAD
-    // ── [MULTI-WINDOW] Window Context Management ──────────────────────────────
-
-    /// <summary>
-    /// Lists titles of all currently open top-level windows belonging to the application.
-    /// </summary>
-    public string ListWindows()
-    {
-        var titles = _driver.GetOpenWindowTitles();
-        if (titles.Count == 0) return "No open windows found.";
-        return string.Join("\n", titles.Select((t, i) => $"[{i}] {t}"));
-    }
-
-    /// <summary>
-    /// Switches automation context to a window by title or substring, waiting up to
-    /// <paramref name="timeoutSeconds"/> for it to appear.
-    /// </summary>
-    public string SwitchWindow(string titleSubstring, int timeoutSeconds = 5)
-    {
-        var ok = _driver.SwitchToWindow(titleSubstring, TimeSpan.FromSeconds(timeoutSeconds));
-        return ok
-            ? $"Switched context to window matching: '{titleSubstring}'"
-            : $"Error: window matching '{titleSubstring}' not found after {timeoutSeconds}s.";
-    }
-
     /// <summary>
     /// Closes the currently active window.
     /// </summary>
@@ -408,8 +379,6 @@ public class AgentAutomationEngine
         return "Current window closed.";
     }
 
-=======
->>>>>>> d89c3f9920d7e781e7f535daf328f004eaf7cbbc
     // ── [SESSION-TO-TEST] Export Session to C# or Gherkin ─────────────────────
 
     /// <summary>

@@ -613,17 +613,10 @@ public class FlaUIAdapter : IDriver
             }
 
             // Fallback: select-all then delete via keyboard.
-            Keyboard.TypeSimultaneously(FlaUI.Core.VirtualKeyShort.CONTROL, FlaUI.Core.VirtualKeyShort.KEY_A);
-            Keyboard.Type(FlaUI.Core.VirtualKeyShort.DELETE);
+            Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
+            Keyboard.Type(VirtualKeyShort.DELETE);
             return true;
         }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
-
-
         catch (Exception)
         {
             return false;
@@ -797,6 +790,13 @@ public class FlaUIAdapter : IDriver
         {
             return false;
         }
+    }
+
+    public System.Diagnostics.Process? GetOwnProcess()
+    {
+        if (_application == null) return null;
+        try { return System.Diagnostics.Process.GetProcessById(_application.ProcessId); }
+        catch { return null; }
     }
 
     public bool Scroll(string direction = "down", string? automationId = null)
