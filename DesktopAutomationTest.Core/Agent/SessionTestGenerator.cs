@@ -158,3 +158,4 @@ driver.TryGetTextByAutomationId("{{id}}", out var text{{step.Index}}).Should().B
 
     private static string Escape(string s) => s.Replace("\"", "\\\"");
 }
+

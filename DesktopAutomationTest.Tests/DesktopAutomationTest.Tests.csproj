@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="Allure.Net.Commons" Version="2.15.0" />
     <PackageReference Include="Allure.Xunit" Version="2.15.0" />
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Headless" Version="11.2.3" />
     <PackageReference Include="coverlet.collector" Version="10.1.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
