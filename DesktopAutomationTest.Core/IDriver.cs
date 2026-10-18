@@ -158,7 +158,41 @@ public interface IDriver : IDisposable
 
     /// <summary>
     /// Returns a compact, token-minimized representation of the interactive UI tree for LLM agents.
+    /// Includes all application windows (main window + open dialogs).
     /// </summary>
     /// <param name="format">Format of the dump: "text" (default, minimal tokens) or "json".</param>
     string GetCompactUiTree(string format = "text");
+
+    // ── [FEATURE-WINDOWS] Multi-window / dialog support ───────────────────────
+
+    /// <summary>
+    /// Lists titles of all top-level windows belonging to the automated application.
+    /// </summary>
+    IReadOnlyList<(string Title, int ProcessId)> ListAppWindows();
+
+    /// <summary>
+    /// Switches the automation context to the application window whose title contains
+    /// the given text (case-insensitive).
+    /// </summary>
+    bool SwitchWindow(string titleContains);
+
+    /// <summary>
+    /// Attaches the driver to an already-running process by its OS process id.
+    /// </summary>
+    void AttachToProcess(int processId);
+
+    /// <summary>
+    /// Attaches the driver to an already-running process by executable name.
+    /// </summary>
+    void AttachToProcessByName(string processName);
+
+    /// <summary>
+    /// Captures the current window/screen and returns PNG bytes (for base64 image transport).
+    /// </summary>
+    byte[]? CaptureScreenshotBytes();
+
+    /// <summary>
+    /// Returns false when the target application has exited or the driver was disposed.
+    /// </summary>
+    bool IsApplicationAlive();
 }

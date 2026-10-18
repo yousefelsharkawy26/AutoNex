@@ -393,5 +393,29 @@ public static class ReqnrollServices
             }
             return "[Edit #FirstNameTextBox]\n[Button #SubmitButton \"Submit\"]";
         }
+
+        // ── [FEATURE-WINDOWS] Multi-window / dialog mock members ─────────────
+
+        public IReadOnlyList<(string Title, int ProcessId)> ListAppWindows()
+            => new List<(string, int)> { ("Mock Window Title", Environment.ProcessId) };
+
+        public bool SwitchWindow(string titleContains)
+            => !string.IsNullOrEmpty(titleContains);
+
+        public void AttachToProcess(int processId)
+        {
+            // No-op for mock driver
+        }
+
+        public void AttachToProcessByName(string processName)
+        {
+            // No-op for mock driver
+        }
+
+        public byte[]? CaptureScreenshotBytes()
+            => Array.Empty<byte>();
+
+        public bool IsApplicationAlive()
+            => true;
     }
 }

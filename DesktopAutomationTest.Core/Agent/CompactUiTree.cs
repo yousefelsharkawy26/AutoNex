@@ -39,7 +39,14 @@ public static class CompactUiTree
         }
 
         Traverse(root, results);
-        return results;
+
+        // De-duplicate identical elements: UIA can expose the same logical control
+        // more than once (e.g. a ComboBox and its inner edit part). Duplicates waste
+        // tokens and can confuse agent-side matching.
+        return results
+            .GroupBy(e => $"{e.Type}|{e.AutomationId}|{e.Name}|{e.Value}|{e.State}")
+            .Select(g => g.First())
+            .ToList();
     }
 
     /// <summary>
@@ -64,7 +71,14 @@ public static class CompactUiTree
     /// </summary>
     public static string DumpAsJson(AutomationElement? root)
     {
-        var elements = ExtractInteractiveElements(root);
+        return SerializeElements(ExtractInteractiveElements(root));
+    }
+
+    /// <summary>
+    /// Serializes a pre-built element list (used when merging multiple windows).
+    /// </summary>
+    public static string SerializeElements(IEnumerable<CompactUiElement> elements)
+    {
         return JsonSerializer.Serialize(elements, new JsonSerializerOptions
         {
             WriteIndented = false,

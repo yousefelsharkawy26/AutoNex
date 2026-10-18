@@ -33,6 +33,13 @@ public static class FuzzyLocator
 
         foreach (var candidate in candidates)
         {
+            // Exact matches always win regardless of threshold.
+            if (string.Equals(candidate.AutomationId, target, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(candidate.Name, target, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate.AutomationId ?? candidate.Name;
+            }
+
             var idScore = !string.IsNullOrEmpty(candidate.AutomationId) 
                 ? CalculateSimilarity(normalizedTarget, Normalize(candidate.AutomationId)) 
                 : 0.0;
@@ -41,7 +48,17 @@ public static class FuzzyLocator
                 ? CalculateSimilarity(normalizedTarget, Normalize(candidate.Name)) 
                 : 0.0;
 
-            var score = Math.Max(idScore, nameScore);
+            // Containment boost: normalized target contained in (or containing) the
+            // candidate identifier. Handles cases like "submit" -> "SubmitButton"
+            // where Levenshtein alone scores too low due to length differences.
+            var containmentBonus = 0.0;
+            if (IsContainmentMatch(normalizedTarget, candidate.AutomationId) ||
+                IsContainmentMatch(normalizedTarget, candidate.Name))
+            {
+                containmentBonus = 0.35;
+            }
+
+            var score = Math.Max(idScore, nameScore) + containmentBonus;
 
             if (score > highestScore)
             {
@@ -86,6 +103,30 @@ public static class FuzzyLocator
         }
 
         return cleaned;
+    }
+
+    /// <summary>
+    /// Returns true when the normalized target is a meaningful substring of the
+    /// candidate identifier (or vice versa), e.g. "submit" inside "submitbutton".
+    /// Requires at least 3 characters to avoid noisy single/two-letter matches.
+    /// </summary>
+    private static bool IsContainmentMatch(string normalizedTarget, string? candidateIdentifier)
+    {
+        if (string.IsNullOrEmpty(candidateIdentifier))
+        {
+            return false;
+        }
+
+        var normalizedCandidate = Normalize(candidateIdentifier);
+
+        if (normalizedTarget.Length >= 3 &&
+            (normalizedCandidate.Contains(normalizedTarget, StringComparison.Ordinal) ||
+             normalizedTarget.Contains(normalizedCandidate, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

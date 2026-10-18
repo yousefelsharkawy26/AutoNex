@@ -41,6 +41,13 @@ public record AgentAction
     [JsonPropertyName("key")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Key { get; init; }
+
+    /// <summary>
+    /// Optional per-step timeout in seconds (used by the "wait" action; default 10).
+    /// </summary>
+    [JsonPropertyName("timeout")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? TimeoutSeconds { get; init; }
 }
 
 /// <summary>

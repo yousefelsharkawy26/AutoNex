@@ -35,9 +35,12 @@ internal class Program
             "inspect" => RunInspect(parsed),
             "run"     => RunPlan(parsed),
             "launch"  => RunLaunch(parsed),
+            "attach"  => RunAttach(parsed),
             "wait"    => RunWait(parsed),
             "text"    => RunText(parsed),
             "shot"    => RunShot(parsed),
+            "windows" => RunWindows(parsed),
+            "switch"  => RunSwitchWindow(parsed),
             _         => UnknownCommand(command)
         };
     }
@@ -130,6 +133,56 @@ internal class Program
         return result.StartsWith("Error:") ? 1 : 0;
     }
 
+    static int RunAttach(ParsedArgs p)
+    {
+        var pidStr = p.Get("pid");
+        var name = p.Get("name");
+
+        if (pidStr is null && name is null)
+        {
+            Console.Error.WriteLine("Error: --pid <processId> or --name <processName> is required.");
+            return 1;
+        }
+
+        var driver = DriverFactory.CreateFlauiDriver();
+        try
+        {
+            var engine = new AgentAutomationEngine(driver);
+            int? pid = int.TryParse(pidStr, out var parsedPid) ? parsedPid : null;
+            var result = engine.Attach(pid, name);
+            Console.WriteLine(result);
+            driver.Dispose();
+            return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
+        }
+        catch (Exception ex)
+        {
+            driver.Dispose();
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    static int RunWindows(ParsedArgs p)
+    {
+        RequireAppOrSession(p);
+        using var driver = CreateDriverForSession(p, launchIfNeeded: true);
+        var engine = new AgentAutomationEngine(driver);
+        Console.WriteLine(engine.ListWindows());
+        return 0;
+    }
+
+    static int RunSwitchWindow(ParsedArgs p)
+    {
+        RequireAppOrSession(p);
+        RequireArg(p, "title");
+
+        using var driver = CreateDriverForSession(p, launchIfNeeded: true);
+        var engine = new AgentAutomationEngine(driver);
+        var result = engine.SwitchWindow(p.Get("title")!);
+        Console.WriteLine(result);
+        return result.StartsWith("Error", StringComparison.Ordinal) ? 1 : 0;
+    }
+
     static int UnknownCommand(string cmd)
     {
         Console.Error.WriteLine($"Error: Unknown command '{cmd}'. Run 'autonex help' for usage.");
@@ -138,14 +191,146 @@ internal class Program
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Path of the JSON file that remembers a running AutoNex session so subsequent
+    /// CLI invocations can ATTACH to the already-open application instead of relaunching it.
+    /// </summary>
+    static string SessionFilePath =>
+        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "autonex_session.json");
+
     static IDriver CreateAndLaunch(ParsedArgs p)
     {
-        var appPath = p.Get("app")!;
-        var appArgs = p.Get("args");
-
-        var driver = DriverFactory.CreateFlauiDriver();
-        driver.Initialize(appPath, appArgs);
+        var driver = CreateDriverForSession(p, launchIfNeeded: false);
         return driver;
+    }
+
+    /// <summary>
+    /// Creates a driver for the current invocation:
+    /// 1. If --attach &lt;pid|name&gt; is given, attaches to that running process.
+    /// 2. Else if a live session file exists, attaches to it (no relaunch, no state loss).
+    /// 3. Else launches the app from --app and records the session for later commands.
+    /// When launchIfNeeded=false and neither attach nor a live session exists, falls back to launching.
+    /// </summary>
+    static IDriver CreateDriverForSession(ParsedArgs p, bool launchIfNeeded)
+    {
+        var driver = DriverFactory.CreateFlauiDriver();
+
+        // Explicit attach requested
+        var attachTo = p.Get("attach");
+        if (!string.IsNullOrEmpty(attachTo))
+        {
+            try
+            {
+                if (int.TryParse(attachTo, out var pid))
+                    driver.AttachToProcess(pid);
+                else
+                    driver.AttachToProcessByName(attachTo!);
+                return driver;
+            }
+            catch (Exception ex)
+            {
+                driver.Dispose();
+                Console.Error.WriteLine($"Error: failed to attach to '{attachTo}': {ex.Message}");
+                Environment.Exit(1);
+            }
+        }
+
+        // Try reusing a live recorded session
+        var session = ReadSession();
+        if (session != null)
+        {
+            try
+            {
+                driver.AttachToProcess(session.Value.Pid);
+                return driver;
+            }
+            catch
+            {
+                // Session is stale — fall through to fresh launch.
+            }
+        }
+
+        // Fresh launch
+        var appPath = p.Get("app");
+        if (string.IsNullOrEmpty(appPath))
+        {
+            driver.Dispose();
+            Console.Error.WriteLine("Error: --app is required (no live session found to attach to).");
+            Environment.Exit(1);
+        }
+
+        var appArgs = p.Get("args");
+        driver.Initialize(appPath!, appArgs);
+
+        // Record the session so the next command attaches instead of relaunching.
+        TryRecordSession(driver, appPath!);
+        return driver;
+    }
+
+    record SessionInfo(int Pid, string AppPath);
+
+    static SessionInfo? ReadSession()
+    {
+        try
+        {
+            if (!File.Exists(SessionFilePath))
+                return null;
+
+            var json = File.ReadAllText(SessionFilePath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var pid = root.GetProperty("pid").GetInt32();
+            var appPath = root.GetProperty("appPath").GetString() ?? "";
+
+            // Verify the process is still alive before trusting the session.
+            try
+            {
+                var proc = System.Diagnostics.Process.GetProcessById(pid);
+                proc.Refresh();
+                if (proc.HasExited)
+                    return null;
+            }
+            catch
+            {
+                return null;
+            }
+
+            return new SessionInfo(pid, appPath);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    static void TryRecordSession(IDriver driver, string appPath)
+    {
+        try
+        {
+            var proc = driver.GetOwnProcess();
+            if (proc == null)
+                return;
+
+            var json = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                pid = proc.Id,
+                appPath
+            });
+            File.WriteAllText(SessionFilePath, json);
+        }
+        catch
+        {
+            // Session recording is best-effort; commands still work without it.
+        }
+    }
+
+    static void RequireAppOrSession(ParsedArgs p)
+    {
+        if (p.Get("app") is null && p.Get("attach") is null && ReadSession() is null)
+        {
+            Console.Error.WriteLine("Error: --app is required (or start a session first / use --attach).");
+            Environment.Exit(1);
+        }
     }
 
     static void RequireArg(ParsedArgs p, string name)

@@ -43,8 +43,17 @@ public record CompactUiElement
     public string? State { get; init; }
 
     /// <summary>
+    /// Window title when the element lives in a non-main window (dialog / secondary window).
+    /// Null for elements in the main window — keeps token cost at zero for the common case.
+    /// </summary>
+    [JsonPropertyName("win")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Window { get; init; }
+
+    /// <summary>
     /// Formats the element as a ultra-compact token-saving single-line string.
     /// Example: [Button #SubmitButton "Submit"] or [Edit #FirstNameTextBox val="John"]
+    /// Dialog elements are suffixed with {window title} so agents know a dialog is open.
     /// </summary>
     public override string ToString()
     {
@@ -52,8 +61,9 @@ public record CompactUiElement
         var namePart = !string.IsNullOrEmpty(Name) ? $" \"{Name}\"" : "";
         var valPart = !string.IsNullOrEmpty(Value) ? $" val=\"{Value}\"" : "";
         var statePart = !string.IsNullOrEmpty(State) ? $" ({State})" : "";
+        var winPart = !string.IsNullOrEmpty(Window) ? $" {{{Window}}}" : "";
 
-        return $"[{Type}{idPart}{namePart}{valPart}{statePart}]";
+        return $"[{Type}{idPart}{namePart}{valPart}{statePart}]{winPart}";
     }
 }
 
